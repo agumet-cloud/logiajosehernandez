@@ -94,16 +94,22 @@ formLogin.addEventListener("submit", async (e) => {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
 
-  const { error } = await db.auth.signInWithPassword({ email, password });
+  try {
+    const { error } = await db.auth.signInWithPassword({ email, password });
 
-  if (error) {
-    errorMsg.textContent = "Correo o contraseña incorrectos.";
+    if (error) {
+      errorMsg.textContent = "Correo o contraseña incorrectos.";
+      return;
+    }
+
+    window.location.href = "panel.html";
+  } catch (err) {
+    console.error(err);
+    errorMsg.textContent = "Hubo un error de conexión. Abrí la consola (F12) y avisale a soporte lo que dice ahí.";
+  } finally {
     btnIngresar.disabled = false;
     btnIngresar.textContent = "Ingresar";
-    return;
   }
-
-  window.location.href = "panel.html";
 });
 
 // --- Activación de cuenta (primera contraseña) ---
