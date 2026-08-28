@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071b14">
+<title>Legajos · Resp∴ Log∴ José Hernández N° 75</title>
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  .wrap { max-width:920px; margin:0 auto; padding:32px 20px 80px; }
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:24px; flex-wrap:wrap;
+  }
+  .topbar .left { display:flex; flex-direction:column; gap:2px; }
+  .topbar-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .topbar-actions button { width:auto; }
+
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; align-items:flex-end; }
+  .toolbar .campo { flex:1 1 200px; }
+  .toolbar .campo label { margin-bottom:5px; }
+  .toolbar button { width:auto; white-space:nowrap; }
+  .check-inline { display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--muted); }
+  .check-inline input { width:auto; }
+
+  .lista-item {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 16px; cursor:pointer; border-bottom:1px solid var(--line);
+  }
+  .lista-item:last-child { border-bottom:none; }
+  .lista-item:hover { background:var(--green-2); }
+  .lista-item .nombre { font-size:1rem; color:var(--cream); }
+  .lista-item .nombre small { display:block; color:var(--muted); font-size:.78rem; margin-top:2px; }
+  .lista-item.inactivo .nombre { color:var(--muted); }
+  .pill {
+    display:inline-block; font-size:.7rem; letter-spacing:.03em; padding:3px 10px;
+    border-radius:20px; border:1px solid var(--line); background:var(--green-2); color:var(--gold-soft);
+    white-space:nowrap;
+  }
+  .pill.cargo { color:var(--muted); border-color:var(--line); }
+  .pill.inactivo { color:var(--danger); border-color:var(--danger); background:transparent; }
+
+  .empty-state { text-align:center; padding:40px 16px; color:var(--muted); font-size:.9rem; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  @media (max-width:640px) { .grid2, .grid3 { grid-template-columns:1fr; } }
+
+  .campo { margin-bottom:16px; }
+  .campo.chico { margin-bottom:0; }
+
+  .seccion-titulo {
+    font-size:1.1rem; margin:0 0 4px;
+  }
+  .seccion-desc { margin:0 0 18px; }
+
+  .cargo-row {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 0; border-bottom:1px solid var(--line);
+  }
+  .cargo-row:last-child { border-bottom:none; }
+  .cargo-row .info { font-size:.88rem; }
+  .cargo-row .info .fechas { color:var(--muted); font-size:.78rem; }
+  .cargo-row .acciones { display:flex; gap:6px; }
+  .cargo-row .acciones button { width:auto; padding:5px 10px; font-size:.72rem; }
+
+  .form-cargo {
+    display:none; margin-top:14px; padding:14px; background:var(--green-2);
+    border:1px solid var(--line); border-radius:8px;
+  }
+  .form-cargo.abierto { display:block; }
+  .form-cargo .grid3 { margin-bottom:12px; }
+  .form-cargo .botones { display:flex; gap:8px; }
+  .form-cargo .botones button { width:auto; }
+
+  .acceso-toggle {
+    background:none; border:none; color:var(--muted); font-size:.78rem;
+    cursor:pointer; text-decoration:underline; padding:0; margin-top:4px;
+  }
+  .acceso-toggle:hover { color:var(--gold-soft); }
+  .acceso-box { display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+  .acceso-box.abierto { display:block; }
+  .badge-vinculo {
+    font-size:.72rem; padding:2px 9px; border-radius:20px; border:1px solid var(--line);
+  }
+  .badge-vinculo.si { color:var(--gold-soft); border-color:var(--gold); }
+  .badge-vinculo.no { color:var(--muted); }
+
+  .form-botonera {
+    display:flex; justify-content:space-between; gap:10px; margin-top:22px; flex-wrap:wrap;
+  }
+  .form-botonera .der { display:flex; gap:8px; flex-wrap:wrap; }
+  .form-botonera button { width:auto; }
+
+  .toast {
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+    background:var(--green-3); color:var(--cream); border:1px solid var(--gold);
+    padding:10px 20px; border-radius:20px; font-size:.85rem; z-index:200;
+    box-shadow:0 6px 24px rgba(0,0,0,.4);
+  }
+  .toast.err { border-color:var(--danger); color:var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="left">
+      <div class="kicker">Resp∴ Log∴ José Hernández N° 75</div>
+      <h1 style="font-size:1.6rem; margin:4px 0 0;">Legajos</h1>
+    </div>
+    <div class="topbar-actions">
+      <button class="ghost" id="btn-panel">← Panel</button>
+      <button class="ghost" id="btn-salir">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div id="vista-cargando" class="muted">Cargando…</div>
+
+  <!-- ===================== LISTADO (solo Secretario) ===================== -->
+  <div id="vista-listado" style="display:none;">
+    <div class="toolbar">
+      <div class="campo">
+        <label for="buscador">Buscar</label>
+        <input id="buscador" type="text" placeholder="Nombre…">
+      </div>
+      <div class="campo" style="flex:0 1 180px;">
+        <label for="filtro-grado">Grado</label>
+        <select id="filtro-grado"><option value="">Todos</option></select>
+      </div>
+      <label class="check-inline"><input type="checkbox" id="check-inactivos"> Mostrar inactivos</label>
+      <button class="primary" id="btn-nuevo" style="flex:0 0 auto;">+ Nuevo H∴</button>
+    </div>
+
+    <div class="card" id="lista-card">
+      <div id="lista-contenido"></div>
+    </div>
+  </div>
+
+  <!-- ===================== FICHA (ver / crear / editar) ===================== -->
+  <div id="vista-ficha" style="display:none;">
+    <button class="ghost" id="btn-volver-lista" style="width:auto; margin-bottom:18px;">← Volver al listado</button>
+
+    <div class="card" style="padding:24px;">
+      <h2 class="seccion-titulo" id="ficha-titulo">Legajo</h2>
+      <p class="seccion-desc muted" id="ficha-subtitulo"></p>
+
+      <form id="form-datos">
+        <div class="campo">
+          <label for="f-nombre">Nombre completo</label>
+          <input id="f-nombre" type="text" required>
+        </div>
+
+        <div class="grid3">
+          <div class="campo">
+            <label for="f-grado">Grado</label>
+            <select id="f-grado" required></select>
+          </div>
+          <div class="campo">
+            <label for="f-dni">DNI</label>
+            <input id="f-dni" type="text">
+          </div>
+          <div class="campo">
+            <label for="f-nacimiento">Fecha de nacimiento</label>
+            <input id="f-nacimiento" type="date">
+          </div>
+        </div>
+
+        <div class="grid3">
+          <div class="campo">
+            <label for="f-iniciacion">Fecha de iniciación</label>
+            <input id="f-iniciacion" type="date">
+          </div>
+          <div class="campo">
+            <label for="f-ascenso">Fecha de ascenso</label>
+            <input id="f-ascenso" type="date">
+          </div>
+          <div class="campo">
+            <label for="f-exaltacion">Fecha de exaltación</label>
+            <input id="f-exaltacion" type="date">
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="campo">
+            <label for="f-email">Email de contacto</label>
+            <input id="f-email" type="email">
+          </div>
+          <div class="campo">
+            <label for="f-celular">Celular</label>
+            <input id="f-celular" type="text">
+          </div>
+        </div>
+
+        <div class="grid3">
+          <div class="campo">
+            <label for="f-direccion">Dirección</label>
+            <input id="f-direccion" type="text">
+          </div>
+          <div class="campo">
+            <label for="f-ciudad">Ciudad</label>
+            <input id="f-ciudad" type="text">
+          </div>
+          <div class="campo">
+            <label for="f-provincia">Provincia</label>
+            <input id="f-provincia" type="text">
+          </div>
+        </div>
+
+        <label class="check-inline" style="margin-bottom:4px;">
+          <input type="checkbox" id="f-activo" checked> Legajo activo
+        </label>
+        <p class="muted" style="font-size:.76rem; margin-top:4px;">
+          Desmarcar en caso de baja, traslado u otra situación que saque al H∴ del padrón activo (no borra su historial).
+        </p>
+
+        <button type="button" class="acceso-toggle" id="btn-toggle-acceso">Acceso al sistema</button>
+        <div class="acceso-box" id="acceso-box">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <span>Cuenta vinculada:</span>
+            <span class="badge-vinculo no" id="badge-vinculo">Sin vincular</span>
+          </div>
+          <div class="campo">
+            <label for="f-auth-id">ID de usuario (Supabase Auth)</label>
+            <input id="f-auth-id" type="text" placeholder="UUID del usuario invitado">
+          </div>
+          <p class="muted" style="font-size:.76rem;">
+            Para dar acceso a este H∴: invitalo desde Supabase → Authentication → Users → Invite user,
+            con el mismo email de contacto de arriba. Después copiá el UUID que le asigna Supabase y pegalo acá.
+          </p>
+        </div>
+
+        <div class="form-botonera">
+          <div>
+            <button type="button" class="ghost" id="btn-eliminar-legajo" style="display:none; color:var(--danger); border-color:var(--danger);">Dar de baja</button>
+          </div>
+          <div class="der">
+            <span class="error-msg" id="ficha-error"></span>
+            <button type="submit" class="primary" id="btn-guardar-datos">Guardar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Historial de cargos: solo si el legajo ya existe -->
+    <div class="card" style="padding:24px; margin-top:16px; display:none;" id="card-cargos">
+      <h2 class="seccion-titulo">Historial de cargos</h2>
+      <p class="seccion-desc muted">Cargos ocupados por este H∴ a lo largo del tiempo.</p>
+
+      <div id="cargos-lista"><p class="muted">Sin cargos registrados todavía.</p></div>
+
+      <button type="button" class="ghost" id="btn-abrir-form-cargo" style="width:auto; margin-top:14px;">+ Asignar cargo</button>
+
+      <div class="form-cargo" id="form-cargo">
+        <div class="grid3">
+          <div class="campo chico">
+            <label for="c-cargo">Cargo</label>
+            <select id="c-cargo"></select>
+          </div>
+          <div class="campo chico">
+            <label for="c-desde">Desde</label>
+            <input id="c-desde" type="date">
+          </div>
+          <div class="campo chico">
+            <label for="c-hasta">Hasta (opcional)</label>
+            <input id="c-hasta" type="date">
+          </div>
+        </div>
+        <label class="check-inline" style="margin-bottom:12px;">
+          <input type="checkbox" id="c-vigente" checked> Es el cargo vigente actual
+        </label>
+        <p class="muted" style="font-size:.76rem; margin-bottom:12px;">
+          Si marcás "vigente", se cierra automáticamente el cargo vigente anterior de este H∴ (si tenía uno).
+        </p>
+        <span class="error-msg" id="cargo-error"></span>
+        <div class="botones">
+          <button type="button" class="ghost" id="btn-cancelar-cargo">Cancelar</button>
+          <button type="button" class="primary" id="btn-guardar-cargo">Guardar cargo</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:24px; margin-top:16px;">
+      <h2 class="seccion-titulo">Documentación</h2>
+      <p class="seccion-desc muted" style="margin-bottom:0;">Biblioteca de documentos escaneados — próximamente.</p>
+    </div>
+  </div>
+
+  <!-- ===================== SOLO LECTURA (H∴ que no es Secretario) ===================== -->
+  <div id="vista-propio" style="display:none;">
+    <div class="card" style="padding:24px;">
+      <h2 class="seccion-titulo" id="propio-titulo">Mi legajo</h2>
+      <p class="seccion-desc muted">Solo el Secretario puede editar los legajos. Si algo de tus datos está mal, avisale.</p>
+      <div id="propio-contenido"></div>
+    </div>
+    <div class="card" style="padding:24px; margin-top:16px;">
+      <h2 class="seccion-titulo">Historial de cargos</h2>
+      <div id="propio-cargos"><p class="muted">Sin cargos registrados.</p></div>
+    </div>
+  </div>
+
+  <!-- Sin legajo cargado todavía -->
+  <div id="vista-sin-legajo" style="display:none;" class="card">
+    <div class="empty-state">
+      Tu usuario todavía no tiene un legajo cargado en el sistema.<br>
+      Avisale al Secretario para que lo cree.
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../shared/supabase-client.js"></script>
+<script>
+// ============================================================
+// Estado en memoria
+// ============================================================
+let sesion = null;
+let esSecretario = false;
+let grados = [];       // [{id, nombre, orden}]
+let cargosDisponibles = []; // [{id, nombre}]
+let hermanosCache = [];
+let cargosVigentesPorHermano = {}; // { hermano_id: "Nombre del cargo" }
+let fichaActual = null; // hermano que se está viendo/editando (null = nuevo)
+let cargosDeFichaActual = [];
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function formatFecha(iso) {
+  if (!iso) return "—";
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+
+function mostrarVista(id) {
+  ["vista-cargando", "vista-listado", "vista-ficha", "vista-propio", "vista-sin-legajo"]
+    .forEach((v) => { $(v).style.display = v === id ? "block" : "none"; });
+}
+
+function toast(msg, esError) {
+  const el = document.createElement("div");
+  el.className = "toast" + (esError ? " err" : "");
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+function nombreGrado(grado_id) {
+  const g = grados.find((g) => g.id === grado_id);
+  return g ? g.nombre : "—";
+}
+
+// ============================================================
+// Arranque
+// ============================================================
+(async () => {
+  sesion = await exigirSesion();
+  if (!sesion) return;
+
+  const [{ data: soySec, error: errSec }, { data: gradosData }, { data: cargosData }] = await Promise.all([
+    db.rpc("soy_secretario"),
+    db.from("grados").select("*").order("orden"),
+    db.from("cargos").select("*").order("nombre"),
+  ]);
+
+  if (errSec) console.error("Error chequeando soy_secretario():", errSec);
+  esSecretario = !!soySec;
+  grados = gradosData || [];
+  cargosDisponibles = cargosData || [];
+
+  poblarSelectGrados($("f-grado"));
+  poblarSelectGrados($("filtro-grado"), true);
+  poblarSelectCargos();
+
+  if (esSecretario) {
+    await cargarListado();
+    mostrarVista("vista-listado");
+  } else {
+    await cargarPropioLegajo();
+  }
+})();
+
+$("btn-panel").addEventListener("click", () => window.location.href = "../panel.html");
+$("btn-salir").addEventListener("click", async () => {
+  await db.auth.signOut();
+  window.location.href = "../index.html";
+});
+
+function poblarSelectGrados(select, conOpcionTodos) {
+  select.innerHTML = conOpcionTodos ? '<option value="">Todos</option>' : "";
+  grados.forEach((g) => {
+    const opt = document.createElement("option");
+    opt.value = g.id;
+    opt.textContent = g.nombre;
+    select.appendChild(opt);
+  });
+}
+
+function poblarSelectCargos() {
+  const select = $("c-cargo");
+  select.innerHTML = "";
+  cargosDisponibles.forEach((c) => {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.nombre;
+    select.appendChild(opt);
+  });
+}
+
+// ============================================================
+// LISTADO (Secretario)
+// ============================================================
+async function cargarListado() {
+  const [{ data: hermanos, error: errH }, { data: vigentes, error: errV }] = await Promise.all([
+    db.from("hermanos").select("*").order("nombre_completo"),
+    db.from("hermano_cargos").select("hermano_id, cargos(nombre)").eq("vigente", true),
+  ]);
+
+  if (errH) { toast("No se pudo cargar el listado de HH∴", true); console.error(errH); return; }
+
+  hermanosCache = hermanos || [];
+  cargosVigentesPorHermano = {};
+  (vigentes || []).forEach((v) => {
+    if (v.cargos) cargosVigentesPorHermano[v.hermano_id] = v.cargos.nombre;
+  });
+
+  renderListado();
+}
+
+function renderListado() {
+  const texto = $("buscador").value.trim().toLowerCase();
+  const gradoFiltro = $("filtro-grado").value;
+  const mostrarInactivos = $("check-inactivos").checked;
+
+  let filtrados = hermanosCache.filter((h) => {
+    if (!mostrarInactivos && !h.activo) return false;
+    if (gradoFiltro && String(h.grado_id) !== gradoFiltro) return false;
+    if (texto && !h.nombre_completo.toLowerCase().includes(texto)) return false;
+    return true;
+  });
+
+  filtrados.sort((a, b) => {
+    const oa = grados.find((g) => g.id === a.grado_id)?.orden ?? 999;
+    const ob = grados.find((g) => g.id === b.grado_id)?.orden ?? 999;
+    if (oa !== ob) return oa - ob;
+    return a.nombre_completo.localeCompare(b.nombre_completo, "es");
+  });
+
+  const cont = $("lista-contenido");
+
+  if (filtrados.length === 0) {
+    cont.innerHTML = '<div class="empty-state">No hay HH∴ que coincidan con la búsqueda.</div>';
+    return;
+  }
+
+  cont.innerHTML = filtrados.map((h) => {
+    const cargo = cargosVigentesPorHermano[h.id];
+    return `
+      <div class="lista-item ${h.activo ? "" : "inactivo"}" data-id="${h.id}">
+        <div class="nombre">
+          ${esc(h.nombre_completo)}
+          <small>${esc(nombreGrado(h.grado_id))}</small>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+          ${cargo ? `<span class="pill cargo">${esc(cargo)}</span>` : ""}
+          ${h.activo ? "" : '<span class="pill inactivo">Inactivo</span>'}
+        </div>
+      </div>`;
+  }).join("");
+
+  cont.querySelectorAll(".lista-item").forEach((el) => {
+    el.addEventListener("click", () => abrirFicha(el.dataset.id));
+  });
+}
+
+$("buscador").addEventListener("input", renderListado);
+$("filtro-grado").addEventListener("change", renderListado);
+$("check-inactivos").addEventListener("change", renderListado);
+$("btn-nuevo").addEventListener("click", () => abrirFicha(null));
+
+// ============================================================
+// FICHA (crear / ver / editar) — Secretario
+// ============================================================
+$("btn-volver-lista").addEventListener("click", async () => {
+  await cargarListado();
+  mostrarVista("vista-listado");
+});
+
+async function abrirFicha(id) {
+  $("ficha-error").textContent = "";
+  $("acceso-box").classList.remove("abierto");
+  $("form-cargo").classList.remove("abierto");
+
+  if (id === null) {
+    // Nuevo legajo
+    fichaActual = null;
+    cargosDeFichaActual = [];
+    $("ficha-titulo").textContent = "Nuevo legajo";
+    $("ficha-subtitulo").textContent = "Cargá los datos del H∴ y guardá para poder asignarle un cargo.";
+    limpiarFormularioDatos();
+    $("card-cargos").style.display = "none";
+    $("btn-eliminar-legajo").style.display = "none";
+    mostrarVista("vista-ficha");
+    return;
+  }
+
+  const { data: hermano, error } = await db.from("hermanos").select("*").eq("id", id).single();
+  if (error || !hermano) { toast("No se pudo abrir el legajo.", true); console.error(error); return; }
+
+  fichaActual = hermano;
+  $("ficha-titulo").textContent = hermano.nombre_completo;
+  $("ficha-subtitulo").textContent = nombreGrado(hermano.grado_id);
+  llenarFormularioDatos(hermano);
+  $("card-cargos").style.display = "block";
+  $("btn-eliminar-legajo").style.display = "inline-flex";
+  $("btn-eliminar-legajo").textContent = hermano.activo ? "Dar de baja" : "Reactivar";
+
+  await cargarCargosDeFicha(hermano.id);
+  mostrarVista("vista-ficha");
+}
+
+function limpiarFormularioDatos() {
+  $("f-nombre").value = "";
+  $("f-grado").value = grados[0]?.id ?? "";
+  $("f-dni").value = "";
+  $("f-nacimiento").value = "";
+  $("f-iniciacion").value = "";
+  $("f-ascenso").value = "";
+  $("f-exaltacion").value = "";
+  $("f-email").value = "";
+  $("f-celular").value = "";
+  $("f-direccion").value = "";
+  $("f-ciudad").value = "";
+  $("f-provincia").value = "";
+  $("f-activo").checked = true;
+  $("f-auth-id").value = "";
+  $("badge-vinculo").textContent = "Sin vincular";
+  $("badge-vinculo").className = "badge-vinculo no";
+}
+
+function llenarFormularioDatos(h) {
+  $("f-nombre").value = h.nombre_completo || "";
+  $("f-grado").value = h.grado_id ?? "";
+  $("f-dni").value = h.dni || "";
+  $("f-nacimiento").value = h.fecha_nacimiento || "";
+  $("f-iniciacion").value = h.fecha_iniciacion || "";
+  $("f-ascenso").value = h.fecha_ascenso || "";
+  $("f-exaltacion").value = h.fecha_exaltacion || "";
+  $("f-email").value = h.email || "";
+  $("f-celular").value = h.celular || "";
+  $("f-direccion").value = h.direccion || "";
+  $("f-ciudad").value = h.ciudad || "";
+  $("f-provincia").value = h.provincia || "";
+  $("f-activo").checked = !!h.activo;
+  $("f-auth-id").value = h.auth_user_id || "";
+  if (h.auth_user_id) {
+    $("badge-vinculo").textContent = "Vinculado";
+    $("badge-vinculo").className = "badge-vinculo si";
+  } else {
+    $("badge-vinculo").textContent = "Sin vincular";
+    $("badge-vinculo").className = "badge-vinculo no";
+  }
+}
+
+$("btn-toggle-acceso").addEventListener("click", () => {
+  $("acceso-box").classList.toggle("abierto");
+});
+
+$("form-datos").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("ficha-error").textContent = "";
+
+  const payload = {
+    nombre_completo: $("f-nombre").value.trim(),
+    grado_id: Number($("f-grado").value),
+    dni: $("f-dni").value.trim() || null,
+    fecha_nacimiento: $("f-nacimiento").value || null,
+    fecha_iniciacion: $("f-iniciacion").value || null,
+    fecha_ascenso: $("f-ascenso").value || null,
+    fecha_exaltacion: $("f-exaltacion").value || null,
+    email: $("f-email").value.trim() || null,
+    celular: $("f-celular").value.trim() || null,
+    direccion: $("f-direccion").value.trim() || null,
+    ciudad: $("f-ciudad").value.trim() || null,
+    provincia: $("f-provincia").value.trim() || null,
+    activo: $("f-activo").checked,
+    auth_user_id: $("f-auth-id").value.trim() || null,
+  };
+
+  if (!payload.nombre_completo) {
+    $("ficha-error").textContent = "Falta el nombre completo.";
+    return;
+  }
+
+  const btn = $("btn-guardar-datos");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  try {
+    if (fichaActual) {
+      const { error } = await db.from("hermanos").update(payload).eq("id", fichaActual.id);
+      if (error) throw error;
+      toast("Legajo actualizado.");
+      await abrirFicha(fichaActual.id);
+    } else {
+      const { data, error } = await db.from("hermanos").insert(payload).select().single();
+      if (error) throw error;
+      toast("Legajo creado. Ahora podés asignarle un cargo si corresponde.");
+      await abrirFicha(data.id);
+    }
+  } catch (err) {
+    console.error(err);
+    $("ficha-error").textContent = "No se pudo guardar. Revisá los datos e intentá de nuevo.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Guardar";
+  }
+});
+
+$("btn-eliminar-legajo").addEventListener("click", async () => {
+  if (!fichaActual) return;
+  const nuevoEstado = !fichaActual.activo;
+  const confirmMsg = nuevoEstado
+    ? "¿Reactivar este legajo?"
+    : "¿Dar de baja este legajo? No se borra ningún dato, solo deja de aparecer en el padrón activo.";
+  if (!confirm(confirmMsg)) return;
+
+  const { error } = await db.from("hermanos").update({ activo: nuevoEstado }).eq("id", fichaActual.id);
+  if (error) { toast("No se pudo actualizar el estado.", true); console.error(error); return; }
+  toast(nuevoEstado ? "Legajo reactivado." : "Legajo dado de baja.");
+  await abrirFicha(fichaActual.id);
+});
+
+// ---- Historial de cargos ----
+async function cargarCargosDeFicha(hermanoId) {
+  const { data, error } = await db
+    .from("hermano_cargos")
+    .select("*, cargos(nombre)")
+    .eq("hermano_id", hermanoId)
+    .order("desde", { ascending: false });
+
+  if (error) { console.error(error); return; }
+  cargosDeFichaActual = data || [];
+  renderCargosDeFicha();
+}
+
+function renderCargosDeFicha() {
+  const cont = $("cargos-lista");
+  if (cargosDeFichaActual.length === 0) {
+    cont.innerHTML = '<p class="muted">Sin cargos registrados todavía.</p>';
+    return;
+  }
+  cont.innerHTML = cargosDeFichaActual.map((c) => `
+    <div class="cargo-row">
+      <div class="info">
+        <div>${esc(c.cargos?.nombre || "Cargo")} ${c.vigente ? '<span class="pill" style="margin-left:6px;">Vigente</span>' : ""}</div>
+        <div class="fechas">${formatFecha(c.desde)} — ${c.hasta ? formatFecha(c.hasta) : (c.vigente ? "actualidad" : "—")}</div>
+      </div>
+      <div class="acciones">
+        ${c.vigente ? `<button type="button" class="ghost btn-finalizar-cargo" data-id="${c.id}">Finalizar</button>` : ""}
+        <button type="button" class="ghost btn-borrar-cargo" data-id="${c.id}" style="color:var(--danger); border-color:var(--danger);">Borrar</button>
+      </div>
+    </div>
+  `).join("");
+
+  cont.querySelectorAll(".btn-finalizar-cargo").forEach((b) => {
+    b.addEventListener("click", () => finalizarCargo(b.dataset.id));
+  });
+  cont.querySelectorAll(".btn-borrar-cargo").forEach((b) => {
+    b.addEventListener("click", () => borrarCargo(b.dataset.id));
+  });
+}
+
+async function finalizarCargo(cargoRowId) {
+  if (!confirm("¿Marcar este cargo como finalizado hoy?")) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const { error } = await db.from("hermano_cargos").update({ vigente: false, hasta: hoy }).eq("id", cargoRowId);
+  if (error) { toast("No se pudo finalizar el cargo.", true); console.error(error); return; }
+  await cargarCargosDeFicha(fichaActual.id);
+  toast("Cargo finalizado.");
+}
+
+async function borrarCargo(cargoRowId) {
+  if (!confirm("¿Borrar este registro de cargo? No se puede deshacer.")) return;
+  const { error } = await db.from("hermano_cargos").delete().eq("id", cargoRowId);
+  if (error) { toast("No se pudo borrar.", true); console.error(error); return; }
+  await cargarCargosDeFicha(fichaActual.id);
+  toast("Registro borrado.");
+}
+
+$("btn-abrir-form-cargo").addEventListener("click", () => {
+  $("c-desde").value = new Date().toISOString().slice(0, 10);
+  $("c-hasta").value = "";
+  $("c-vigente").checked = true;
+  $("cargo-error").textContent = "";
+  $("form-cargo").classList.add("abierto");
+});
+$("btn-cancelar-cargo").addEventListener("click", () => {
+  $("form-cargo").classList.remove("abierto");
+});
+
+$("btn-guardar-cargo").addEventListener("click", async () => {
+  $("cargo-error").textContent = "";
+  const cargoId = Number($("c-cargo").value);
+  const desde = $("c-desde").value;
+  const hasta = $("c-hasta").value || null;
+  const vigente = $("c-vigente").checked;
+
+  if (!cargoId || !desde) {
+    $("cargo-error").textContent = "Elegí un cargo y una fecha de inicio.";
+    return;
+  }
+
+  const btn = $("btn-guardar-cargo");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  try {
+    if (vigente) {
+      // Cierra cualquier otro cargo vigente de este H∴ antes de abrir el nuevo
+      const otrosVigentes = cargosDeFichaActual.filter((c) => c.vigente);
+      for (const c of otrosVigentes) {
+        const { error } = await db.from("hermano_cargos").update({ vigente: false, hasta: desde }).eq("id", c.id);
+        if (error) throw error;
+      }
+    }
+
+    const { error } = await db.from("hermano_cargos").insert({
+      hermano_id: fichaActual.id,
+      cargo_id: cargoId,
+      desde,
+      hasta,
+      vigente,
+    });
+    if (error) throw error;
+
+    $("form-cargo").classList.remove("abierto");
+    await cargarCargosDeFicha(fichaActual.id);
+    toast("Cargo asignado.");
+  } catch (err) {
+    console.error(err);
+    $("cargo-error").textContent = "No se pudo guardar el cargo.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Guardar cargo";
+  }
+});
+
+// ============================================================
+// VISTA PROPIA (H∴ que no es Secretario) — solo lectura
+// ============================================================
+async function cargarPropioLegajo() {
+  const { data: hermano, error } = await db
+    .from("hermanos")
+    .select("*")
+    .eq("auth_user_id", sesion.user.id)
+    .maybeSingle();
+
+  if (error) { console.error(error); toast("No se pudo cargar tu legajo.", true); }
+
+  if (!hermano) {
+    mostrarVista("vista-sin-legajo");
+    return;
+  }
+
+  $("propio-titulo").textContent = hermano.nombre_completo;
+  $("propio-contenido").innerHTML = `
+    <div class="grid2">
+      <div><span class="muted" style="font-size:.78rem;">Grado</span><br>${esc(nombreGrado(hermano.grado_id))}</div>
+      <div><span class="muted" style="font-size:.78rem;">DNI</span><br>${esc(hermano.dni) || "—"}</div>
+      <div><span class="muted" style="font-size:.78rem;">Fecha de nacimiento</span><br>${formatFecha(hermano.fecha_nacimiento)}</div>
+      <div><span class="muted" style="font-size:.78rem;">Fecha de iniciación</span><br>${formatFecha(hermano.fecha_iniciacion)}</div>
+      <div><span class="muted" style="font-size:.78rem;">Fecha de ascenso</span><br>${formatFecha(hermano.fecha_ascenso)}</div>
+      <div><span class="muted" style="font-size:.78rem;">Fecha de exaltación</span><br>${formatFecha(hermano.fecha_exaltacion)}</div>
+      <div><span class="muted" style="font-size:.78rem;">Email de contacto</span><br>${esc(hermano.email) || "—"}</div>
+      <div><span class="muted" style="font-size:.78rem;">Celular</span><br>${esc(hermano.celular) || "—"}</div>
+      <div><span class="muted" style="font-size:.78rem;">Dirección</span><br>${esc(hermano.direccion) || "—"}</div>
+      <div><span class="muted" style="font-size:.78rem;">Ciudad / Provincia</span><br>${esc(hermano.ciudad) || "—"} ${hermano.provincia ? "/ " + esc(hermano.provincia) : ""}</div>
+    </div>
+  `;
+
+  const { data: cargosHist } = await db
+    .from("hermano_cargos")
+    .select("*, cargos(nombre)")
+    .eq("hermano_id", hermano.id)
+    .order("desde", { ascending: false });
+
+  const cont = $("propio-cargos");
+  if (!cargosHist || cargosHist.length === 0) {
+    cont.innerHTML = '<p class="muted">Sin cargos registrados.</p>';
+  } else {
+    cont.innerHTML = cargosHist.map((c) => `
+      <div class="cargo-row">
+        <div class="info">
+          <div>${esc(c.cargos?.nombre || "Cargo")} ${c.vigente ? '<span class="pill" style="margin-left:6px;">Vigente</span>' : ""}</div>
+          <div class="fechas">${formatFecha(c.desde)} — ${c.hasta ? formatFecha(c.hasta) : (c.vigente ? "actualidad" : "—")}</div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  mostrarVista("vista-propio");
+}
+</script>
+</body>
+</html>
