@@ -126,7 +126,7 @@
 
   <div id="vista-cargando" class="muted">Cargando…</div>
 
-  <!-- ===================== LISTADO (solo Secretario) ===================== -->
+  <!-- ===================== LISTADO (todos los HH∴ logueados) ===================== -->
   <div id="vista-listado" style="display:none;">
     <div class="toolbar">
       <div class="campo">
@@ -139,7 +139,7 @@
       </div>
       <label class="check-inline"><input type="checkbox" id="check-inactivos"> Mostrar inactivos</label>
       <button class="ghost" id="btn-exportar-xlsx">Cuadro lógico</button>
-      <button class="primary" id="btn-nuevo" style="flex:0 0 auto;">+ Nuevo H∴</button>
+      <button class="primary" id="btn-nuevo" style="flex:0 0 auto; display:none;">+ Nuevo H∴</button>
     </div>
 
     <div class="card" id="lista-card">
@@ -147,7 +147,7 @@
     </div>
   </div>
 
-  <!-- ===================== FICHA (ver / crear / editar) ===================== -->
+  <!-- ===================== FICHA (todos ven; solo Secretario crea/edita) ===================== -->
   <div id="vista-ficha" style="display:none;">
     <button class="ghost" id="btn-volver-lista" style="width:auto; margin-bottom:18px;">← Volver al listado</button>
 
@@ -240,7 +240,7 @@
           </p>
         </div>
 
-        <div class="form-botonera">
+        <div class="form-botonera" id="form-botonera">
           <div>
             <button type="button" class="ghost" id="btn-eliminar-legajo" style="display:none; color:var(--danger); border-color:var(--danger);">Dar de baja</button>
           </div>
@@ -362,35 +362,6 @@
     </div>
   </div>
 
-  <!-- ===================== SOLO LECTURA (H∴ que no es Secretario) ===================== -->
-  <div id="vista-propio" style="display:none;">
-    <div class="card" style="padding:24px;">
-      <h2 class="seccion-titulo" id="propio-titulo">Mi legajo</h2>
-      <p class="seccion-desc muted">Solo el Secretario puede editar los legajos. Si algo de tus datos está mal, avisale.</p>
-      <div id="propio-contenido"></div>
-    </div>
-    <div class="card" style="padding:24px; margin-top:16px;">
-      <h2 class="seccion-titulo">Historial de cargos</h2>
-      <div id="propio-cargos"><p class="muted">Sin cargos registrados.</p></div>
-    </div>
-    <div class="card" style="padding:24px; margin-top:16px;">
-      <h2 class="seccion-titulo">Firma</h2>
-      <div id="propio-firma"><p class="muted">Sin firma cargada.</p></div>
-    </div>
-    <div class="card" style="padding:24px; margin-top:16px;">
-      <h2 class="seccion-titulo">Documentación</h2>
-      <div id="propio-documentos"><p class="muted">Sin documentos cargados.</p></div>
-    </div>
-  </div>
-
-  <!-- Sin legajo cargado todavía -->
-  <div id="vista-sin-legajo" style="display:none;" class="card">
-    <div class="empty-state">
-      Tu usuario todavía no tiene un legajo cargado en el sistema.<br>
-      Avisale al Secretario para que lo cree.
-    </div>
-  </div>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -432,7 +403,7 @@ function formatFecha(iso) {
 }
 
 function mostrarVista(id) {
-  ["vista-cargando", "vista-listado", "vista-ficha", "vista-propio", "vista-sin-legajo"]
+  ["vista-cargando", "vista-listado", "vista-ficha"]
     .forEach((v) => { $(v).style.display = v === id ? "block" : "none"; });
 }
 
@@ -472,12 +443,12 @@ function nombreGrado(grado_id) {
   poblarSelectCargos();
   initCanvasFirma();
 
-  if (esSecretario) {
-    await cargarListado();
-    mostrarVista("vista-listado");
-  } else {
-    await cargarPropioLegajo();
-  }
+  // Todos los HH∴ logueados pueden ver el padrón completo; solo el
+  // Secretario puede crear legajos nuevos o editar cualquier campo.
+  $("btn-nuevo").style.display = esSecretario ? "inline-flex" : "none";
+
+  await cargarListado();
+  mostrarVista("vista-listado");
 })();
 
 $("btn-panel").addEventListener("click", () => window.location.href = "../panel.html");
@@ -508,7 +479,7 @@ function poblarSelectCargos() {
 }
 
 // ============================================================
-// LISTADO (Secretario)
+// LISTADO (todos los HH∴ logueados)
 // ============================================================
 async function cargarListado() {
   const [{ data: hermanos, error: errH }, { data: vigentes, error: errV }] = await Promise.all([
@@ -619,17 +590,28 @@ function exportarCuadroLogico() {
 }
 
 // ============================================================
-// FICHA (crear / ver / editar) — Secretario
+// FICHA (todos ven; solo Secretario crea/edita)
 // ============================================================
 $("btn-volver-lista").addEventListener("click", async () => {
   await cargarListado();
   mostrarVista("vista-listado");
 });
 
+// Habilita o bloquea los campos del formulario de datos según el rol.
+function setFormularioEditable(editable) {
+  $("form-datos").querySelectorAll("input, select").forEach((el) => { el.disabled = !editable; });
+  $("form-botonera").style.display = editable ? "flex" : "none";
+  $("btn-toggle-acceso").style.display = editable ? "inline-block" : "none";
+  $("acceso-box").classList.remove("abierto");
+}
+
 async function abrirFicha(id) {
+  if (id === null && !esSecretario) return; // defensivo: el botón ya está oculto
+
   $("ficha-error").textContent = "";
   $("acceso-box").classList.remove("abierto");
   $("form-cargo").classList.remove("abierto");
+  setFormularioEditable(esSecretario);
 
   if (id === null) {
     // Nuevo legajo
@@ -657,14 +639,14 @@ async function abrirFicha(id) {
   $("card-cargos").style.display = "block";
   $("card-firma").style.display = "block";
   $("card-documentos").style.display = "block";
-  $("btn-eliminar-legajo").style.display = "inline-flex";
+  $("btn-eliminar-legajo").style.display = esSecretario ? "inline-flex" : "none";
   $("btn-eliminar-legajo").textContent = hermano.activo ? "Dar de baja" : "Reactivar";
 
   await cargarCargosDeFicha(hermano.id);
   await cargarFirma();
   documentosActuales = await obtenerDocumentos(hermano.id);
   $("btn-abrir-form-doc").style.display = esSecretario ? "inline-flex" : "none";
-  renderDocumentos("documentos-lista", documentosActuales, true);
+  renderDocumentos("documentos-lista", documentosActuales, esSecretario);
 
   mostrarVista("vista-ficha");
 }
@@ -795,6 +777,8 @@ async function cargarCargosDeFicha(hermanoId) {
 }
 
 function renderCargosDeFicha() {
+  $("btn-abrir-form-cargo").style.display = esSecretario ? "inline-flex" : "none";
+
   const cont = $("cargos-lista");
   if (cargosDeFichaActual.length === 0) {
     cont.innerHTML = '<p class="muted">Sin cargos registrados todavía.</p>';
@@ -806,12 +790,15 @@ function renderCargosDeFicha() {
         <div>${esc(c.cargos?.nombre || "Cargo")} ${c.vigente ? '<span class="pill" style="margin-left:6px;">Vigente</span>' : ""}</div>
         <div class="fechas">${formatFecha(c.desde)} — ${c.hasta ? formatFecha(c.hasta) : (c.vigente ? "actualidad" : "—")}</div>
       </div>
+      ${esSecretario ? `
       <div class="acciones">
         ${c.vigente ? `<button type="button" class="ghost btn-finalizar-cargo" data-id="${c.id}">Finalizar</button>` : ""}
         <button type="button" class="ghost btn-borrar-cargo" data-id="${c.id}" style="color:var(--danger); border-color:var(--danger);">Borrar</button>
-      </div>
+      </div>` : ""}
     </div>
   `).join("");
+
+  if (!esSecretario) return;
 
   cont.querySelectorAll(".btn-finalizar-cargo").forEach((b) => {
     b.addEventListener("click", () => finalizarCargo(b.dataset.id));
@@ -1148,76 +1135,6 @@ $("btn-subir-doc").addEventListener("click", async () => {
   }
 });
 
-// ============================================================
-// VISTA PROPIA (H∴ que no es Secretario) — solo lectura
-// ============================================================
-async function cargarPropioLegajo() {
-  const { data: hermano, error } = await db
-    .from("hermanos")
-    .select("*")
-    .eq("auth_user_id", sesion.user.id)
-    .maybeSingle();
-
-  if (error) { console.error(error); toast("No se pudo cargar tu legajo.", true); }
-
-  if (!hermano) {
-    mostrarVista("vista-sin-legajo");
-    return;
-  }
-
-  $("propio-titulo").textContent = hermano.nombre_completo;
-  $("propio-contenido").innerHTML = `
-    <div class="grid2">
-      <div><span class="muted" style="font-size:.78rem;">Grado</span><br>${esc(nombreGrado(hermano.grado_id))}</div>
-      <div><span class="muted" style="font-size:.78rem;">DNI</span><br>${esc(hermano.dni) || "—"}</div>
-      <div><span class="muted" style="font-size:.78rem;">Fecha de nacimiento</span><br>${formatFecha(hermano.fecha_nacimiento)}</div>
-      <div><span class="muted" style="font-size:.78rem;">Fecha de iniciación</span><br>${formatFecha(hermano.fecha_iniciacion)}</div>
-      <div><span class="muted" style="font-size:.78rem;">Fecha de ascenso</span><br>${formatFecha(hermano.fecha_ascenso)}</div>
-      <div><span class="muted" style="font-size:.78rem;">Fecha de exaltación</span><br>${formatFecha(hermano.fecha_exaltacion)}</div>
-      <div><span class="muted" style="font-size:.78rem;">Email de contacto</span><br>${esc(hermano.email) || "—"}</div>
-      <div><span class="muted" style="font-size:.78rem;">Celular</span><br>${esc(hermano.celular) || "—"}</div>
-      <div><span class="muted" style="font-size:.78rem;">Dirección</span><br>${esc(hermano.direccion) || "—"}</div>
-      <div><span class="muted" style="font-size:.78rem;">Ciudad / Provincia</span><br>${esc(hermano.ciudad) || "—"} ${hermano.provincia ? "/ " + esc(hermano.provincia) : ""}</div>
-    </div>
-  `;
-
-  const { data: cargosHist } = await db
-    .from("hermano_cargos")
-    .select("*, cargos(nombre)")
-    .eq("hermano_id", hermano.id)
-    .order("desde", { ascending: false });
-
-  const cont = $("propio-cargos");
-  if (!cargosHist || cargosHist.length === 0) {
-    cont.innerHTML = '<p class="muted">Sin cargos registrados.</p>';
-  } else {
-    cont.innerHTML = cargosHist.map((c) => `
-      <div class="cargo-row">
-        <div class="info">
-          <div>${esc(c.cargos?.nombre || "Cargo")} ${c.vigente ? '<span class="pill" style="margin-left:6px;">Vigente</span>' : ""}</div>
-          <div class="fechas">${formatFecha(c.desde)} — ${c.hasta ? formatFecha(c.hasta) : (c.vigente ? "actualidad" : "—")}</div>
-        </div>
-      </div>
-    `).join("");
-  }
-
-  // Firma (solo lectura)
-  const contFirma = $("propio-firma");
-  if (!hermano.firma_url) {
-    contFirma.innerHTML = '<p class="muted">Sin firma cargada.</p>';
-  } else {
-    const { data: firmaData, error: errFirma } = await db.storage.from(BUCKET_FIRMAS).createSignedUrl(hermano.firma_url, 300);
-    contFirma.innerHTML = (!errFirma && firmaData)
-      ? `<img src="${firmaData.signedUrl}" alt="Firma" style="max-width:280px; background:#fff; border-radius:6px; padding:8px;">`
-      : '<p class="muted">No se pudo cargar la firma.</p>';
-  }
-
-  // Documentación (solo descarga)
-  const docsPropios = await obtenerDocumentos(hermano.id);
-  renderDocumentos("propio-documentos", docsPropios, false);
-
-  mostrarVista("vista-propio");
-}
 </script>
 </body>
 </html>
