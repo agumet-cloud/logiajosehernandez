@@ -90,6 +90,11 @@ select option {
   color:var(--cream);
 }
 
+input:disabled, select:disabled {
+  opacity:.65;
+  cursor:not-allowed;
+}
+
 button.primary {
   width:100%;
   background:var(--gold);
