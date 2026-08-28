@@ -66,6 +66,30 @@ input {
 }
 input:focus { border-color:var(--gold); }
 
+select {
+  width:100%;
+  background-color:var(--green-2);
+  border:1px solid var(--line);
+  border-radius:6px;
+  color:var(--cream);
+  padding:12px 36px 12px 14px;
+  font-family:Inter,sans-serif;
+  font-size:.95rem;
+  outline:none;
+  cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%23c9a85d' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+}
+select:focus { border-color:var(--gold); }
+select option {
+  background:var(--green-1);
+  color:var(--cream);
+}
+
 button.primary {
   width:100%;
   background:var(--gold);
