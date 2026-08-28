@@ -15,6 +15,17 @@
 const SUPABASE_URL = "PEGAR_ACA_TU_PROJECT_URL";
 const SUPABASE_ANON_KEY = "PEGAR_ACA_TU_ANON_PUBLIC_KEY";
 
+if (SUPABASE_URL.includes("PEGAR_ACA") || SUPABASE_ANON_KEY.includes("PEGAR_ACA")) {
+  document.body.innerHTML =
+    "<div style='padding:40px;color:#eee8d8;background:#03110c;font-family:sans-serif;min-height:100svh;'>" +
+    "Falta completar la conexión con Supabase.<br><br>" +
+    "Abrí <code>shared/supabase-client.js</code> y reemplazá SUPABASE_URL y " +
+    "SUPABASE_ANON_KEY por los valores reales de tu proyecto " +
+    "(Supabase → Project Settings → API)." +
+    "</div>";
+  throw new Error("Supabase no configurado: faltan SUPABASE_URL / SUPABASE_ANON_KEY");
+}
+
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Si no hay sesión activa, manda a la persona a la pantalla de login.
