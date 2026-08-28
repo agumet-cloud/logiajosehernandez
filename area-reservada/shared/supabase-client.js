@@ -12,8 +12,8 @@
 // para nada de lo que construimos hasta ahora.
 // ============================================================
 
-const SUPABASE_URL = "PEGAR_ACA_TU_PROJECT_URL";
-const SUPABASE_ANON_KEY = "PEGAR_ACA_TU_ANON_PUBLIC_KEY";
+const SUPABASE_URL = "https://sngeitnbsitedehvsmev.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_3XL9pVvEo56RcS9iCSCKog_zrH_QX0z";
 
 if (SUPABASE_URL.includes("PEGAR_ACA") || SUPABASE_ANON_KEY.includes("PEGAR_ACA")) {
   document.body.innerHTML =
