@@ -80,6 +80,14 @@
   .acceso-toggle:hover { color:var(--gold-soft); }
   .acceso-box { display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
   .acceso-box.abierto { display:block; }
+
+  .sign-tabs { display:flex; gap:6px; margin-bottom:14px; }
+  .sign-tabs button {
+    flex:1; padding:9px; border-radius:6px; border:1px solid var(--line);
+    background:transparent; color:var(--muted); cursor:pointer; font-size:.82rem;
+  }
+  .sign-tabs button.on { background:var(--gold); color:var(--green-0); border-color:var(--gold); }
+  .toolbar button#btn-exportar-xlsx { flex:0 0 auto; }
   .badge-vinculo {
     font-size:.72rem; padding:2px 9px; border-radius:20px; border:1px solid var(--line);
   }
@@ -130,6 +138,7 @@
         <select id="filtro-grado"><option value="">Todos</option></select>
       </div>
       <label class="check-inline"><input type="checkbox" id="check-inactivos"> Mostrar inactivos</label>
+      <button class="ghost" id="btn-exportar-xlsx">Cuadro lógico</button>
       <button class="primary" id="btn-nuevo" style="flex:0 0 auto;">+ Nuevo H∴</button>
     </div>
 
@@ -281,9 +290,75 @@
       </div>
     </div>
 
-    <div class="card" style="padding:24px; margin-top:16px;">
+    <!-- Firma digital -->
+    <div class="card" style="padding:24px; margin-top:16px; display:none;" id="card-firma">
+      <h2 class="seccion-titulo">Firma</h2>
+      <p class="seccion-desc muted">Firma digital de este H∴. Visible para cualquiera, solo el Secretario puede cargarla o reemplazarla.</p>
+
+      <div id="firma-vista"><p class="muted">Sin firma cargada.</p></div>
+
+      <button type="button" class="ghost" id="btn-abrir-firma" style="width:auto; margin-top:14px; display:none;">Cargar firma</button>
+
+      <div class="form-cargo" id="box-firma">
+        <div class="sign-tabs">
+          <button type="button" class="on" id="tab-subir-firma">Subir imagen</button>
+          <button type="button" id="tab-dibujar-firma">Dibujar</button>
+        </div>
+
+        <div id="panel-subir-firma">
+          <div class="campo chico" style="margin-bottom:14px;">
+            <input type="file" id="firma-archivo" accept="image/*">
+          </div>
+        </div>
+
+        <div id="panel-dibujar-firma" style="display:none;">
+          <canvas id="firma-canvas" width="600" height="200"
+            style="width:100%; height:160px; background:#fff; border-radius:6px; touch-action:none; cursor:crosshair; margin-bottom:10px; display:block;"></canvas>
+          <button type="button" class="ghost" id="btn-limpiar-firma" style="width:auto; margin-bottom:14px;">Limpiar</button>
+        </div>
+
+        <span class="error-msg" id="firma-error"></span>
+        <div class="botones">
+          <button type="button" class="ghost" id="btn-cancelar-firma">Cancelar</button>
+          <button type="button" class="primary" id="btn-guardar-firma">Guardar firma</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Documentación -->
+    <div class="card" style="padding:24px; margin-top:16px; display:none;" id="card-documentos">
       <h2 class="seccion-titulo">Documentación</h2>
-      <p class="seccion-desc muted" style="margin-bottom:0;">Biblioteca de documentos escaneados — próximamente.</p>
+      <p class="seccion-desc muted">Ficha de afiliación, DNI u otra documentación de este H∴. Cualquiera puede descargarla; solo el Secretario puede subir o borrar.</p>
+
+      <div id="documentos-lista"><p class="muted">Sin documentos cargados.</p></div>
+
+      <button type="button" class="ghost" id="btn-abrir-form-doc" style="width:auto; margin-top:14px; display:none;">+ Adjuntar documento</button>
+
+      <div class="form-cargo" id="form-documento">
+        <div class="grid2">
+          <div class="campo chico">
+            <label for="d-tipo">Tipo de documento</label>
+            <select id="d-tipo">
+              <option value="Ficha de afiliación">Ficha de afiliación</option>
+              <option value="DNI">DNI</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="campo chico">
+            <label for="d-tipo-otro" id="lbl-tipo-otro" style="display:none;">Especificar</label>
+            <input id="d-tipo-otro" type="text" style="display:none;" placeholder="Nombre del documento">
+          </div>
+        </div>
+        <div class="campo" style="margin-top:4px;">
+          <label for="d-archivo">Archivo (PDF o imagen)</label>
+          <input id="d-archivo" type="file" accept=".pdf,image/*">
+        </div>
+        <span class="error-msg" id="documento-error"></span>
+        <div class="botones">
+          <button type="button" class="ghost" id="btn-cancelar-doc">Cancelar</button>
+          <button type="button" class="primary" id="btn-subir-doc">Subir</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -298,6 +373,14 @@
       <h2 class="seccion-titulo">Historial de cargos</h2>
       <div id="propio-cargos"><p class="muted">Sin cargos registrados.</p></div>
     </div>
+    <div class="card" style="padding:24px; margin-top:16px;">
+      <h2 class="seccion-titulo">Firma</h2>
+      <div id="propio-firma"><p class="muted">Sin firma cargada.</p></div>
+    </div>
+    <div class="card" style="padding:24px; margin-top:16px;">
+      <h2 class="seccion-titulo">Documentación</h2>
+      <div id="propio-documentos"><p class="muted">Sin documentos cargados.</p></div>
+    </div>
   </div>
 
   <!-- Sin legajo cargado todavía -->
@@ -311,19 +394,27 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="../shared/supabase-client.js"></script>
 <script>
 // ============================================================
 // Estado en memoria
 // ============================================================
+const BUCKET_FIRMAS = "firmas";
+const BUCKET_DOCUMENTOS = "documentos";
+
 let sesion = null;
 let esSecretario = false;
 let grados = [];       // [{id, nombre, orden}]
 let cargosDisponibles = []; // [{id, nombre}]
 let hermanosCache = [];
 let cargosVigentesPorHermano = {}; // { hermano_id: "Nombre del cargo" }
+let ultimoFiltrado = []; // último listado filtrado, para exportar
 let fichaActual = null; // hermano que se está viendo/editando (null = nuevo)
 let cargosDeFichaActual = [];
+let documentosActuales = [];
+let ctxFirma = null;
+let dibujandoFirma = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -379,6 +470,7 @@ function nombreGrado(grado_id) {
   poblarSelectGrados($("f-grado"));
   poblarSelectGrados($("filtro-grado"), true);
   poblarSelectCargos();
+  initCanvasFirma();
 
   if (esSecretario) {
     await cargarListado();
@@ -454,6 +546,8 @@ function renderListado() {
     return a.nombre_completo.localeCompare(b.nombre_completo, "es");
   });
 
+  ultimoFiltrado = filtrados;
+
   const cont = $("lista-contenido");
 
   if (filtrados.length === 0) {
@@ -485,6 +579,44 @@ $("buscador").addEventListener("input", renderListado);
 $("filtro-grado").addEventListener("change", renderListado);
 $("check-inactivos").addEventListener("change", renderListado);
 $("btn-nuevo").addEventListener("click", () => abrirFicha(null));
+$("btn-exportar-xlsx").addEventListener("click", exportarCuadroLogico);
+
+function exportarCuadroLogico() {
+  if (ultimoFiltrado.length === 0) {
+    toast("No hay HH∴ para exportar con este filtro.", true);
+    return;
+  }
+
+  const filas = ultimoFiltrado.map((h) => ({
+    "Nombre completo": h.nombre_completo,
+    "Grado": nombreGrado(h.grado_id),
+    "Cargo vigente": cargosVigentesPorHermano[h.id] || "",
+    "DNI": h.dni || "",
+    "Fecha de nacimiento": h.fecha_nacimiento || "",
+    "Fecha de iniciación": h.fecha_iniciacion || "",
+    "Fecha de ascenso": h.fecha_ascenso || "",
+    "Fecha de exaltación": h.fecha_exaltacion || "",
+    "Email": h.email || "",
+    "Celular": h.celular || "",
+    "Dirección": h.direccion || "",
+    "Ciudad": h.ciudad || "",
+    "Provincia": h.provincia || "",
+    "Activo": h.activo ? "Sí" : "No",
+  }));
+
+  const hoja = XLSX.utils.json_to_sheet(filas);
+  hoja["!cols"] = [
+    { wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 12 }, { wch: 14 },
+    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 24 }, { wch: 14 },
+    { wch: 28 }, { wch: 16 }, { wch: 14 }, { wch: 8 },
+  ];
+
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, "Cuadro lógico");
+
+  const fecha = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(libro, `Cuadro logico - ${fecha}.xlsx`);
+}
 
 // ============================================================
 // FICHA (crear / ver / editar) — Secretario
@@ -503,10 +635,13 @@ async function abrirFicha(id) {
     // Nuevo legajo
     fichaActual = null;
     cargosDeFichaActual = [];
+    documentosActuales = [];
     $("ficha-titulo").textContent = "Nuevo legajo";
-    $("ficha-subtitulo").textContent = "Cargá los datos del H∴ y guardá para poder asignarle un cargo.";
+    $("ficha-subtitulo").textContent = "Cargá los datos del H∴ y guardá para poder asignarle un cargo, firma y documentación.";
     limpiarFormularioDatos();
     $("card-cargos").style.display = "none";
+    $("card-firma").style.display = "none";
+    $("card-documentos").style.display = "none";
     $("btn-eliminar-legajo").style.display = "none";
     mostrarVista("vista-ficha");
     return;
@@ -520,10 +655,17 @@ async function abrirFicha(id) {
   $("ficha-subtitulo").textContent = nombreGrado(hermano.grado_id);
   llenarFormularioDatos(hermano);
   $("card-cargos").style.display = "block";
+  $("card-firma").style.display = "block";
+  $("card-documentos").style.display = "block";
   $("btn-eliminar-legajo").style.display = "inline-flex";
   $("btn-eliminar-legajo").textContent = hermano.activo ? "Dar de baja" : "Reactivar";
 
   await cargarCargosDeFicha(hermano.id);
+  await cargarFirma();
+  documentosActuales = await obtenerDocumentos(hermano.id);
+  $("btn-abrir-form-doc").style.display = esSecretario ? "inline-flex" : "none";
+  renderDocumentos("documentos-lista", documentosActuales, true);
+
   mostrarVista("vista-ficha");
 }
 
@@ -755,6 +897,258 @@ $("btn-guardar-cargo").addEventListener("click", async () => {
 });
 
 // ============================================================
+// FIRMA DIGITAL
+// ============================================================
+function initCanvasFirma() {
+  const canvas = $("firma-canvas");
+  ctxFirma = canvas.getContext("2d");
+  limpiarCanvasFirma();
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const escalaX = canvas.width / r.width;
+    const escalaY = canvas.height / r.height;
+    const p = e.touches ? e.touches[0] : e;
+    return { x: (p.clientX - r.left) * escalaX, y: (p.clientY - r.top) * escalaY };
+  }
+  function empezar(e) {
+    e.preventDefault();
+    dibujandoFirma = true;
+    const { x, y } = pos(e);
+    ctxFirma.beginPath();
+    ctxFirma.moveTo(x, y);
+  }
+  function mover(e) {
+    if (!dibujandoFirma) return;
+    e.preventDefault();
+    const { x, y } = pos(e);
+    ctxFirma.lineTo(x, y);
+    ctxFirma.stroke();
+  }
+  function terminar() { dibujandoFirma = false; }
+
+  canvas.addEventListener("mousedown", empezar);
+  canvas.addEventListener("mousemove", mover);
+  window.addEventListener("mouseup", terminar);
+  canvas.addEventListener("touchstart", empezar, { passive: false });
+  canvas.addEventListener("touchmove", mover, { passive: false });
+  canvas.addEventListener("touchend", terminar);
+}
+
+function limpiarCanvasFirma() {
+  if (!ctxFirma) return;
+  ctxFirma.fillStyle = "#fff";
+  ctxFirma.fillRect(0, 0, ctxFirma.canvas.width, ctxFirma.canvas.height);
+  ctxFirma.lineWidth = 3;
+  ctxFirma.lineCap = "round";
+  ctxFirma.strokeStyle = "#111";
+}
+
+function cambiarTabFirma(modo) {
+  $("tab-subir-firma").classList.toggle("on", modo === "subir");
+  $("tab-dibujar-firma").classList.toggle("on", modo === "dibujar");
+  $("panel-subir-firma").style.display = modo === "subir" ? "block" : "none";
+  $("panel-dibujar-firma").style.display = modo === "dibujar" ? "block" : "none";
+  if (modo === "dibujar") limpiarCanvasFirma();
+}
+$("tab-subir-firma").addEventListener("click", () => cambiarTabFirma("subir"));
+$("tab-dibujar-firma").addEventListener("click", () => cambiarTabFirma("dibujar"));
+$("btn-limpiar-firma").addEventListener("click", limpiarCanvasFirma);
+
+async function cargarFirma() {
+  $("btn-abrir-firma").style.display = esSecretario ? "inline-flex" : "none";
+  $("btn-abrir-firma").textContent = fichaActual.firma_url ? "Reemplazar firma" : "Cargar firma";
+
+  if (!fichaActual.firma_url) {
+    $("firma-vista").innerHTML = '<p class="muted">Sin firma cargada.</p>';
+    return;
+  }
+  const { data, error } = await db.storage.from(BUCKET_FIRMAS).createSignedUrl(fichaActual.firma_url, 300);
+  if (error || !data) {
+    $("firma-vista").innerHTML = '<p class="muted">No se pudo cargar la firma.</p>';
+    console.error(error);
+    return;
+  }
+  $("firma-vista").innerHTML = `<img src="${data.signedUrl}" alt="Firma" style="max-width:280px; background:#fff; border-radius:6px; padding:8px;">`;
+}
+
+$("btn-abrir-firma").addEventListener("click", () => {
+  $("firma-error").textContent = "";
+  $("firma-archivo").value = "";
+  cambiarTabFirma("subir");
+  $("box-firma").classList.add("abierto");
+});
+$("btn-cancelar-firma").addEventListener("click", () => {
+  $("box-firma").classList.remove("abierto");
+});
+
+$("btn-guardar-firma").addEventListener("click", async () => {
+  $("firma-error").textContent = "";
+  const modoDibujo = $("tab-dibujar-firma").classList.contains("on");
+  const btn = $("btn-guardar-firma");
+
+  let blob, ext, contentType;
+  if (modoDibujo) {
+    blob = await new Promise((resolve) => $("firma-canvas").toBlob(resolve, "image/png"));
+    if (!blob) { $("firma-error").textContent = "No se pudo generar la imagen."; return; }
+    ext = "png";
+    contentType = "image/png";
+  } else {
+    const archivo = $("firma-archivo").files[0];
+    if (!archivo) { $("firma-error").textContent = "Elegí una imagen."; return; }
+    blob = archivo;
+    contentType = archivo.type || "image/png";
+    ext = (archivo.name.split(".").pop() || "png").toLowerCase();
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  try {
+    const pathAnterior = fichaActual.firma_url;
+    const path = `${fichaActual.id}.${ext}`;
+
+    const { error: errSubida } = await db.storage.from(BUCKET_FIRMAS).upload(path, blob, { upsert: true, contentType });
+    if (errSubida) throw errSubida;
+
+    const { error: errUpdate } = await db.from("hermanos").update({ firma_url: path }).eq("id", fichaActual.id);
+    if (errUpdate) throw errUpdate;
+
+    if (pathAnterior && pathAnterior !== path) {
+      db.storage.from(BUCKET_FIRMAS).remove([pathAnterior]).catch(() => {});
+    }
+
+    fichaActual.firma_url = path;
+    $("box-firma").classList.remove("abierto");
+    await cargarFirma();
+    toast("Firma guardada.");
+  } catch (err) {
+    console.error(err);
+    $("firma-error").textContent = "No se pudo guardar la firma.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Guardar firma";
+  }
+});
+
+// ============================================================
+// DOCUMENTACIÓN
+// ============================================================
+async function obtenerDocumentos(hermanoId) {
+  const { data, error } = await db
+    .from("documentos")
+    .select("*")
+    .eq("hermano_id", hermanoId)
+    .order("fecha_carga", { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+function renderDocumentos(contId, docs, permitirGestion) {
+  const cont = $(contId);
+  if (!docs || docs.length === 0) {
+    cont.innerHTML = '<p class="muted">Sin documentos cargados.</p>';
+    return;
+  }
+  cont.innerHTML = docs.map((d) => `
+    <div class="cargo-row">
+      <div class="info">
+        <div>${esc(d.tipo || "Documento")}</div>
+        <div class="fechas">Cargado el ${formatFecha((d.fecha_carga || "").slice(0, 10))}</div>
+      </div>
+      <div class="acciones">
+        <button type="button" class="ghost btn-descargar-doc" data-id="${d.id}">Descargar</button>
+        ${permitirGestion ? `<button type="button" class="ghost btn-borrar-doc" data-id="${d.id}" style="color:var(--danger); border-color:var(--danger);">Borrar</button>` : ""}
+      </div>
+    </div>
+  `).join("");
+
+  cont.querySelectorAll(".btn-descargar-doc").forEach((b) => {
+    b.addEventListener("click", () => descargarDocumento(b.dataset.id, docs));
+  });
+  if (permitirGestion) {
+    cont.querySelectorAll(".btn-borrar-doc").forEach((b) => {
+      b.addEventListener("click", () => borrarDocumento(b.dataset.id));
+    });
+  }
+}
+
+async function descargarDocumento(docId, docs) {
+  const doc = (docs || documentosActuales).find((d) => String(d.id) === String(docId));
+  if (!doc) return;
+  const { data, error } = await db.storage.from(BUCKET_DOCUMENTOS).createSignedUrl(doc.archivo_url, 60);
+  if (error || !data) { toast("No se pudo generar el link de descarga.", true); console.error(error); return; }
+  window.open(data.signedUrl, "_blank");
+}
+
+async function borrarDocumento(docId) {
+  if (!confirm("¿Borrar este documento? No se puede deshacer.")) return;
+  const doc = documentosActuales.find((d) => String(d.id) === String(docId));
+
+  const { error: errDb } = await db.from("documentos").delete().eq("id", docId);
+  if (errDb) { toast("No se pudo borrar.", true); console.error(errDb); return; }
+
+  if (doc) db.storage.from(BUCKET_DOCUMENTOS).remove([doc.archivo_url]).catch(() => {});
+
+  documentosActuales = await obtenerDocumentos(fichaActual.id);
+  renderDocumentos("documentos-lista", documentosActuales, true);
+  toast("Documento borrado.");
+}
+
+$("btn-abrir-form-doc").addEventListener("click", () => {
+  $("documento-error").textContent = "";
+  $("d-tipo").value = "Ficha de afiliación";
+  $("d-tipo-otro").style.display = "none";
+  $("lbl-tipo-otro").style.display = "none";
+  $("d-tipo-otro").value = "";
+  $("d-archivo").value = "";
+  $("form-documento").classList.add("abierto");
+});
+$("btn-cancelar-doc").addEventListener("click", () => {
+  $("form-documento").classList.remove("abierto");
+});
+$("d-tipo").addEventListener("change", () => {
+  const esOtro = $("d-tipo").value === "Otro";
+  $("d-tipo-otro").style.display = esOtro ? "block" : "none";
+  $("lbl-tipo-otro").style.display = esOtro ? "block" : "none";
+});
+
+$("btn-subir-doc").addEventListener("click", async () => {
+  $("documento-error").textContent = "";
+  const archivo = $("d-archivo").files[0];
+  const tipoSeleccionado = $("d-tipo").value;
+  const tipo = tipoSeleccionado === "Otro" ? ($("d-tipo-otro").value.trim() || "Otro") : tipoSeleccionado;
+
+  if (!archivo) { $("documento-error").textContent = "Elegí un archivo."; return; }
+
+  const btn = $("btn-subir-doc");
+  btn.disabled = true;
+  btn.textContent = "Subiendo…";
+
+  try {
+    const ext = (archivo.name.split(".").pop() || "bin").toLowerCase();
+    const path = `${fichaActual.id}/${Date.now()}-${ext}`;
+
+    const { error: errSubida } = await db.storage.from(BUCKET_DOCUMENTOS).upload(path, archivo, { contentType: archivo.type || undefined });
+    if (errSubida) throw errSubida;
+
+    const { error: errDb } = await db.from("documentos").insert({ hermano_id: fichaActual.id, tipo, archivo_url: path });
+    if (errDb) throw errDb;
+
+    $("form-documento").classList.remove("abierto");
+    documentosActuales = await obtenerDocumentos(fichaActual.id);
+    renderDocumentos("documentos-lista", documentosActuales, true);
+    toast("Documento subido.");
+  } catch (err) {
+    console.error(err);
+    $("documento-error").textContent = "No se pudo subir el documento.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Subir";
+  }
+});
+
+// ============================================================
 // VISTA PROPIA (H∴ que no es Secretario) — solo lectura
 // ============================================================
 async function cargarPropioLegajo() {
@@ -806,6 +1200,21 @@ async function cargarPropioLegajo() {
       </div>
     `).join("");
   }
+
+  // Firma (solo lectura)
+  const contFirma = $("propio-firma");
+  if (!hermano.firma_url) {
+    contFirma.innerHTML = '<p class="muted">Sin firma cargada.</p>';
+  } else {
+    const { data: firmaData, error: errFirma } = await db.storage.from(BUCKET_FIRMAS).createSignedUrl(hermano.firma_url, 300);
+    contFirma.innerHTML = (!errFirma && firmaData)
+      ? `<img src="${firmaData.signedUrl}" alt="Firma" style="max-width:280px; background:#fff; border-radius:6px; padding:8px;">`
+      : '<p class="muted">No se pudo cargar la firma.</p>';
+  }
+
+  // Documentación (solo descarga)
+  const docsPropios = await obtenerDocumentos(hermano.id);
+  renderDocumentos("propio-documentos", docsPropios, false);
 
   mostrarVista("vista-propio");
 }
