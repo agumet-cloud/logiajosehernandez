@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071b14">
+<title>Boletines · Secretaría · Resp∴ Log∴ José Hernández N° 75</title>
+<link rel="stylesheet" href="../../shared/style.css">
+<style>
+  .wrap { max-width:920px; margin:0 auto; padding:32px 20px 80px; }
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:24px; flex-wrap:wrap;
+  }
+  .topbar .left { display:flex; flex-direction:column; gap:2px; }
+  .topbar-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .topbar-actions button { width:auto; }
+
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; align-items:flex-end; }
+  .toolbar .campo { flex:1 1 200px; }
+  .toolbar .campo.chico { flex:0 1 150px; }
+  .toolbar .campo label { margin-bottom:5px; }
+  .toolbar button { width:auto; white-space:nowrap; }
+
+  .campo { margin-bottom:16px; }
+  .campo.chico { margin-bottom:0; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  @media (max-width:640px) { .grid2, .grid3 { grid-template-columns:1fr; } }
+
+  textarea {
+    width:100%;
+    background:var(--green-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--cream);
+    padding:12px 14px;
+    font-family:Inter,sans-serif;
+    font-size:.95rem;
+    outline:none;
+    resize:vertical;
+    min-height:70px;
+  }
+  textarea:focus { border-color:var(--gold); }
+
+  .empty-state { text-align:center; padding:40px 16px; color:var(--muted); font-size:.9rem; }
+
+  .boletin-row {
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    padding:16px; border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .boletin-row:last-child { border-bottom:none; }
+  .boletin-info { min-width:0; flex:1 1 260px; }
+  .boletin-titulo { font-size:1rem; color:var(--cream); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .boletin-periodo { color:var(--muted); font-size:.82rem; margin-top:2px; }
+  .boletin-notas {
+    color:var(--muted); font-size:.82rem; margin-top:6px;
+    max-width:520px; white-space:pre-wrap; word-break:break-word;
+  }
+  .boletin-acciones { display:flex; gap:6px; flex-wrap:wrap; align-items:flex-start; }
+  .boletin-acciones button { width:auto; padding:7px 12px; font-size:.78rem; }
+
+  .pill {
+    display:inline-block; font-size:.7rem; letter-spacing:.03em; padding:3px 10px;
+    border-radius:20px; border:1px solid var(--line); white-space:nowrap;
+  }
+  .pill.ordinario { color:var(--muted); }
+  .pill.relevante { color:var(--gold-soft); border-color:var(--gold); background:rgba(201,168,93,.12); }
+
+  .form-boletin {
+    display:none; margin-top:4px; margin-bottom:20px; padding:18px;
+    background:var(--green-2); border:1px solid var(--line); border-radius:8px;
+  }
+  .form-boletin.abierto { display:block; }
+  .form-boletin .botones { display:flex; gap:8px; justify-content:flex-end; }
+  .form-boletin .botones button { width:auto; }
+  .form-boletin h3 { margin:0 0 14px; font-size:1.05rem; }
+
+  .card-header {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:18px 18px 0;
+  }
+  .card-header h2 { font-size:1.05rem; margin:0; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="left">
+      <div class="kicker">Secretaría</div>
+      <h1 style="font-size:1.6rem; margin:4px 0 0;">Boletines</h1>
+      <p class="muted" style="margin:2px 0 0;">Boletines de Novedades de la delegación</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="ghost" id="btn-secretaria">← Secretaría</button>
+      <button class="ghost" id="btn-salir">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div id="vista-cargando" class="muted">Cargando…</div>
+
+  <div id="vista-listado" style="display:none;">
+    <div class="toolbar">
+      <div class="campo">
+        <label for="buscador">Buscar</label>
+        <input id="buscador" type="text" placeholder="Número o notas…">
+      </div>
+      <div class="campo chico">
+        <label for="filtro-clasificacion">Clasificación</label>
+        <select id="filtro-clasificacion">
+          <option value="">Todas</option>
+          <option value="ordinario">Ordinario</option>
+          <option value="relevante">Relevante</option>
+        </select>
+      </div>
+      <div class="campo chico">
+        <label for="filtro-anio">Año</label>
+        <select id="filtro-anio"><option value="">Todos</option></select>
+      </div>
+      <button class="primary" id="btn-nuevo" style="flex:0 0 auto; display:none;">+ Nuevo boletín</button>
+    </div>
+
+    <!-- ===================== ALTA / EDICIÓN (solo Secretario) ===================== -->
+    <div class="form-boletin" id="form-boletin">
+      <h3 id="form-titulo">Nuevo boletín</h3>
+      <form id="form-datos-boletin">
+        <div class="grid3">
+          <div class="campo chico">
+            <label for="b-numero">Número (opcional)</label>
+            <input id="b-numero" type="text" placeholder="Ej: XXXVII">
+          </div>
+          <div class="campo chico">
+            <label for="b-mes">Mes</label>
+            <select id="b-mes"></select>
+          </div>
+          <div class="campo chico">
+            <label for="b-anio">Año</label>
+            <input id="b-anio" type="number" min="2000" max="2100" step="1">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="b-clasificacion">Clasificación</label>
+          <select id="b-clasificacion">
+            <option value="ordinario">Ordinario — boletín general de la delegación</option>
+            <option value="relevante">Relevante — contiene algo puntual sobre nuestra logia</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="b-notas">Notas (opcional)</label>
+          <textarea id="b-notas" placeholder="Detalle de qué trae este boletín…"></textarea>
+        </div>
+
+        <div class="campo" style="margin-bottom:8px;">
+          <label for="b-archivo" id="b-archivo-label">Archivo (PDF)</label>
+          <input id="b-archivo" type="file" accept="application/pdf,.pdf">
+          <p class="muted" id="b-archivo-actual" style="font-size:.76rem; margin-top:6px;"></p>
+        </div>
+
+        <span class="error-msg" id="boletin-error"></span>
+        <div class="botones">
+          <button type="button" class="ghost" id="btn-cancelar-boletin">Cancelar</button>
+          <button type="submit" class="primary" id="btn-guardar-boletin">Guardar</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===================== LISTADO ===================== -->
+    <div class="card" id="lista-card">
+      <div class="card-header">
+        <h2>Archivo de boletines</h2>
+      </div>
+      <div id="lista-contenido"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../../shared/supabase-client.js"></script>
+<script>
+// ============================================================
+// Estado en memoria
+// ============================================================
+const BUCKET_BOLETINES = "boletines";
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+let sesion = null;
+let esSecretario = false;
+let miHermanoId = null;
+let boletinesCache = [];
+let editandoId = null; // null = alta nueva; si no, id del boletín que se está editando
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function toast(msg, esError) {
+  const el = document.createElement("div");
+  el.className = "toast" + (esError ? " err" : "");
+  el.style.cssText = "position:fixed;bottom:22px;left:50%;transform:translateX(-50%);"
+    + "background:var(--green-3);color:var(--cream);border:1px solid " + (esError ? "var(--danger)" : "var(--gold)") + ";"
+    + "padding:10px 20px;border-radius:20px;font-size:.85rem;z-index:200;box-shadow:0 6px 24px rgba(0,0,0,.4);";
+  if (esError) el.style.color = "var(--danger)";
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+function mostrarVista(id) {
+  ["vista-cargando", "vista-listado"].forEach((v) => {
+    $(v).style.display = v === id ? "block" : "none";
+  });
+}
+
+function poblarSelectMeses() {
+  $("b-mes").innerHTML = MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join("");
+}
+
+// ============================================================
+// Arranque
+// ============================================================
+(async () => {
+  sesion = await exigirSesion();
+  if (!sesion) return;
+
+  const [{ data: soySec, error: errSec }, { data: hermanoPropio }] = await Promise.all([
+    db.rpc("soy_secretario"),
+    db.from("hermanos").select("id").eq("auth_user_id", sesion.user.id).maybeSingle(),
+  ]);
+
+  if (errSec) console.error("Error chequeando soy_secretario():", errSec);
+  esSecretario = !!soySec;
+  miHermanoId = hermanoPropio?.id || null;
+
+  poblarSelectMeses();
+  $("btn-nuevo").style.display = esSecretario ? "inline-flex" : "none";
+
+  await cargarListado();
+  mostrarVista("vista-listado");
+})();
+
+$("btn-secretaria").addEventListener("click", () => window.location.href = "../index.html");
+$("btn-salir").addEventListener("click", async () => {
+  await db.auth.signOut();
+  window.location.href = "../../index.html";
+});
+
+// ============================================================
+// LISTADO
+// ============================================================
+async function cargarListado() {
+  const { data, error } = await db
+    .from("boletines")
+    .select("*")
+    .order("anio", { ascending: false })
+    .order("mes", { ascending: false })
+    .order("creado_en", { ascending: false });
+
+  if (error) { toast("No se pudo cargar el archivo de boletines.", true); console.error(error); return; }
+
+  boletinesCache = data || [];
+  poblarSelectAnios();
+  renderListado();
+}
+
+function poblarSelectAnios() {
+  const anioActual = $("filtro-anio").value;
+  const anios = [...new Set(boletinesCache.map((b) => b.anio))].sort((a, b) => b - a);
+  $("filtro-anio").innerHTML = '<option value="">Todos</option>'
+    + anios.map((a) => `<option value="${a}">${a}</option>`).join("");
+  if (anios.includes(Number(anioActual))) $("filtro-anio").value = anioActual;
+}
+
+function renderListado() {
+  const texto = $("buscador").value.trim().toLowerCase();
+  const clasifFiltro = $("filtro-clasificacion").value;
+  const anioFiltro = $("filtro-anio").value;
+
+  const filtrados = boletinesCache.filter((b) => {
+    if (clasifFiltro && b.clasificacion !== clasifFiltro) return false;
+    if (anioFiltro && String(b.anio) !== anioFiltro) return false;
+    if (texto) {
+      const enNumero = (b.numero || "").toLowerCase().includes(texto);
+      const enNotas = (b.notas || "").toLowerCase().includes(texto);
+      if (!enNumero && !enNotas) return false;
+    }
+    return true;
+  });
+
+  const cont = $("lista-contenido");
+
+  if (filtrados.length === 0) {
+    cont.innerHTML = boletinesCache.length === 0
+      ? '<div class="empty-state">Todavía no hay boletines cargados.</div>'
+      : '<div class="empty-state">No hay boletines que coincidan con la búsqueda.</div>';
+    return;
+  }
+
+  cont.innerHTML = filtrados.map((b) => `
+    <div class="boletin-row" data-id="${b.id}">
+      <div class="boletin-info">
+        <div class="boletin-titulo">
+          <span>Boletín de Novedades${b.numero ? " " + esc(b.numero) : ""}</span>
+          <span class="pill ${b.clasificacion}">${b.clasificacion === "relevante" ? "Relevante" : "Ordinario"}</span>
+        </div>
+        <div class="boletin-periodo">${MESES[b.mes - 1] || "—"} ${b.anio}</div>
+        ${b.notas ? `<div class="boletin-notas">${esc(b.notas)}</div>` : ""}
+      </div>
+      <div class="boletin-acciones">
+        <button type="button" class="ghost btn-descargar" data-id="${b.id}">Descargar</button>
+        ${esSecretario ? `
+          <button type="button" class="ghost btn-editar" data-id="${b.id}">Editar</button>
+          <button type="button" class="ghost btn-borrar" data-id="${b.id}" style="color:var(--danger); border-color:var(--danger);">Borrar</button>
+        ` : ""}
+      </div>
+    </div>
+  `).join("");
+
+  cont.querySelectorAll(".btn-descargar").forEach((btn) => {
+    btn.addEventListener("click", () => descargarBoletin(btn.dataset.id));
+  });
+  if (esSecretario) {
+    cont.querySelectorAll(".btn-editar").forEach((btn) => {
+      btn.addEventListener("click", () => abrirFormEdicion(btn.dataset.id));
+    });
+    cont.querySelectorAll(".btn-borrar").forEach((btn) => {
+      btn.addEventListener("click", () => borrarBoletin(btn.dataset.id));
+    });
+  }
+}
+
+$("buscador").addEventListener("input", renderListado);
+$("filtro-clasificacion").addEventListener("change", renderListado);
+$("filtro-anio").addEventListener("change", renderListado);
+
+async function descargarBoletin(id) {
+  const b = boletinesCache.find((x) => String(x.id) === String(id));
+  if (!b) return;
+  const { data, error } = await db.storage.from(BUCKET_BOLETINES).createSignedUrl(b.archivo_url, 120);
+  if (error || !data) { toast("No se pudo generar el link de descarga.", true); console.error(error); return; }
+  window.open(data.signedUrl, "_blank");
+}
+
+// ============================================================
+// ALTA / EDICIÓN (solo Secretario)
+// ============================================================
+$("btn-nuevo").addEventListener("click", () => abrirFormAlta());
+
+function abrirFormAlta() {
+  editandoId = null;
+  $("form-titulo").textContent = "Nuevo boletín";
+  $("boletin-error").textContent = "";
+  $("b-numero").value = "";
+  const hoy = new Date();
+  $("b-mes").value = hoy.getMonth() + 1;
+  $("b-anio").value = hoy.getFullYear();
+  $("b-clasificacion").value = "ordinario";
+  $("b-notas").value = "";
+  $("b-archivo").value = "";
+  $("b-archivo-label").textContent = "Archivo (PDF)";
+  $("b-archivo-actual").textContent = "";
+  $("form-boletin").classList.add("abierto");
+  $("form-boletin").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function abrirFormEdicion(id) {
+  const b = boletinesCache.find((x) => String(x.id) === String(id));
+  if (!b) return;
+  editandoId = b.id;
+  $("form-titulo").textContent = "Editar boletín";
+  $("boletin-error").textContent = "";
+  $("b-numero").value = b.numero || "";
+  $("b-mes").value = b.mes;
+  $("b-anio").value = b.anio;
+  $("b-clasificacion").value = b.clasificacion;
+  $("b-notas").value = b.notas || "";
+  $("b-archivo").value = "";
+  $("b-archivo-label").textContent = "Reemplazar archivo (opcional)";
+  $("b-archivo-actual").textContent = "Ya tiene un PDF cargado. Elegí uno nuevo solo si querés reemplazarlo.";
+  $("form-boletin").classList.add("abierto");
+  $("form-boletin").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+$("btn-cancelar-boletin").addEventListener("click", () => {
+  $("form-boletin").classList.remove("abierto");
+  editandoId = null;
+});
+
+$("form-datos-boletin").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("boletin-error").textContent = "";
+
+  const numero = $("b-numero").value.trim() || null;
+  const mes = Number($("b-mes").value);
+  const anio = Number($("b-anio").value);
+  const clasificacion = $("b-clasificacion").value;
+  const notas = $("b-notas").value.trim() || null;
+  const archivo = $("b-archivo").files[0] || null;
+
+  if (!anio || anio < 2000) {
+    $("boletin-error").textContent = "Falta un año válido.";
+    return;
+  }
+  if (!editandoId && !archivo) {
+    $("boletin-error").textContent = "Elegí el archivo PDF del boletín.";
+    return;
+  }
+  if (archivo) {
+    const esPdf = archivo.type === "application/pdf" || /\.pdf$/i.test(archivo.name);
+    if (!esPdf) {
+      $("boletin-error").textContent = "El archivo tiene que ser un PDF.";
+      return;
+    }
+  }
+
+  const btn = $("btn-guardar-boletin");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  try {
+    let archivoUrlAnterior = null;
+    let archivoUrlNuevo = null;
+
+    if (archivo) {
+      const path = `${anio}/${Date.now()}.pdf`;
+      const { error: errSubida } = await db.storage
+        .from(BUCKET_BOLETINES)
+        .upload(path, archivo, { contentType: "application/pdf" });
+      if (errSubida) throw errSubida;
+      archivoUrlNuevo = path;
+    }
+
+    if (editandoId) {
+      const actual = boletinesCache.find((x) => x.id === editandoId);
+      const payload = { numero, mes, anio, clasificacion, notas };
+      if (archivoUrlNuevo) {
+        payload.archivo_url = archivoUrlNuevo;
+        archivoUrlAnterior = actual?.archivo_url || null;
+      }
+      const { error } = await db.from("boletines").update(payload).eq("id", editandoId);
+      if (error) throw error;
+
+      if (archivoUrlAnterior && archivoUrlAnterior !== archivoUrlNuevo) {
+        db.storage.from(BUCKET_BOLETINES).remove([archivoUrlAnterior]).catch(() => {});
+      }
+      toast("Boletín actualizado.");
+    } else {
+      const { error } = await db.from("boletines").insert({
+        numero, mes, anio, clasificacion, notas,
+        archivo_url: archivoUrlNuevo,
+        subido_por: miHermanoId,
+      });
+      if (error) throw error;
+      toast("Boletín cargado.");
+    }
+
+    $("form-boletin").classList.remove("abierto");
+    editandoId = null;
+    await cargarListado();
+  } catch (err) {
+    console.error(err);
+    $("boletin-error").textContent = "No se pudo guardar el boletín.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Guardar";
+  }
+});
+
+async function borrarBoletin(id) {
+  const b = boletinesCache.find((x) => String(x.id) === String(id));
+  if (!b) return;
+  if (!confirm("¿Borrar este boletín? No se puede deshacer.")) return;
+
+  const { error } = await db.from("boletines").delete().eq("id", id);
+  if (error) { toast("No se pudo borrar.", true); console.error(error); return; }
+
+  db.storage.from(BUCKET_BOLETINES).remove([b.archivo_url]).catch(() => {});
+
+  await cargarListado();
+  toast("Boletín borrado.");
+}
+</script>
+</body>
+</html>
