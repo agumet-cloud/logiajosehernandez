@@ -491,7 +491,7 @@ async function verBoletin(id) {
   mostrarEstadoPdf("Cargando…");
 
   try {
-    pdfDocActual = await pdfjsLib.getDocument(data.signedUrl).promise;
+    pdfDocActual = await pdfjsLib.getDocument({ url: data.signedUrl }).promise;
     totalPaginasPdf = pdfDocActual.numPages;
     paginaPdfActual = 1;
     await renderPaginaPdf(1);
