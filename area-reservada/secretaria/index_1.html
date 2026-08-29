@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071b14">
+<title>Secretaría · Resp∴ Log∴ José Hernández N° 75</title>
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:18px;
+  margin-top:32px;
+}
+.area-card {
+  padding:26px 22px;
+  transition:.2s;
+}
+.area-card:not(.disabled):hover { border-color:var(--gold); }
+.area-card.disabled { opacity:.5; }
+.area-card a { text-decoration:none; display:block; }
+.area-title { font-size:1.25rem; margin:0 0 6px; }
+.area-desc { font-size:.85rem; color:var(--muted); margin:0; }
+.tag-proximamente {
+  display:inline-block;
+  font-size:.68rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--muted);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:2px 8px;
+  margin-top:10px;
+}
+</style>
+</head>
+<body>
+
+<div style="max-width:920px; margin:0 auto; padding:48px 24px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+    <div>
+      <div class="kicker">Resp∴ Log∴ José Hernández N° 75</div>
+      <h1 style="font-size:1.9rem; margin:6px 0 0;">Secretaría</h1>
+      <p class="muted" style="margin-top:6px;">Actas, solicitudes de admisión y boletines</p>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="ghost" id="btn-panel">← Panel</button>
+      <button class="ghost" id="btn-salir">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card area-card">
+      <a href="actas/index.html">
+        <h2 class="area-title">Actas</h2>
+        <p class="area-desc">Restirador: armar, leer, firmar y archivar las actas de cada tenida</p>
+      </a>
+    </div>
+
+    <div class="card area-card disabled">
+      <h2 class="area-title">Admisión</h2>
+      <p class="area-desc">Solicitudes de admisión de nuevos HH∴</p>
+      <span class="tag-proximamente">Próximamente</span>
+    </div>
+
+    <div class="card area-card disabled">
+      <h2 class="area-title">Boletines</h2>
+      <p class="area-desc">Archivo y clasificación de los boletines de la delegación</p>
+      <span class="tag-proximamente">Próximamente</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../shared/supabase-client.js"></script>
+<script>
+(async () => {
+  const session = await exigirSesion();
+  if (!session) return;
+})();
+
+document.getElementById("btn-panel").addEventListener("click", () => window.location.href = "../panel.html");
+document.getElementById("btn-salir").addEventListener("click", async () => {
+  await db.auth.signOut();
+  window.location.href = "../index.html";
+});
+</script>
+</body>
+</html>
