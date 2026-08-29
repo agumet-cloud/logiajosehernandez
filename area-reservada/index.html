@@ -76,7 +76,7 @@ const titulo = document.getElementById("titulo");
 
   if (session) {
     // Ya tenía sesión iniciada de antes
-    window.location.href = "panel.html";
+    window.location.href = "/area-reservada/panel.html";
   }
   // Si no hay sesión y no es activación, se queda en el login normal (ya visible)
 })();
@@ -102,7 +102,7 @@ formLogin.addEventListener("submit", async (e) => {
       return;
     }
 
-    window.location.href = "panel.html";
+    window.location.href = "/area-reservada/panel.html";
   } catch (err) {
     console.error(err);
     errorMsg.textContent = "Hubo un error de conexión. Abrí la consola (F12) y avisale a soporte lo que dice ahí.";
@@ -144,7 +144,7 @@ formActivar.addEventListener("submit", async (e) => {
     return;
   }
 
-  window.location.href = "panel.html";
+  window.location.href = "/area-reservada/panel.html";
 });
 </script>
 </body>
