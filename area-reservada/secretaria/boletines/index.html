@@ -81,6 +81,34 @@
     padding:18px 18px 0;
   }
   .card-header h2 { font-size:1.05rem; margin:0; }
+
+  .modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(3,17,12,.82);
+    z-index:300; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.abierto { display:flex; }
+  .modal-pdf-card {
+    background:var(--green-1); border:1px solid var(--line); border-radius:10px;
+    width:100%; max-width:900px; height:88vh; display:flex; flex-direction:column; overflow:hidden;
+  }
+  .modal-pdf-header {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:12px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .modal-pdf-titulo { font-size:.95rem; color:var(--cream); }
+  .modal-pdf-acciones { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .modal-pdf-acciones a {
+    text-decoration:none; display:inline-flex; align-items:center;
+    padding:7px 12px; font-size:.78rem; border-radius:6px;
+    border:1px solid var(--line); color:var(--muted); transition:.2s;
+  }
+  .modal-pdf-acciones a:hover { border-color:var(--gold); color:var(--gold-soft); }
+  .modal-pdf-acciones button { width:auto; }
+  .modal-pdf-frame { flex:1; width:100%; border:none; background:#525659; }
+  .modal-pdf-fallback {
+    display:none; flex:1; align-items:center; justify-content:center;
+    text-align:center; padding:24px; color:var(--muted); font-size:.88rem;
+  }
 </style>
 </head>
 <body>
@@ -177,6 +205,23 @@
     </div>
   </div>
 
+</div>
+
+<!-- ===================== VISOR DE PDF (embebido, sin descargar) ===================== -->
+<div class="modal-overlay" id="modal-pdf">
+  <div class="modal-pdf-card">
+    <div class="modal-pdf-header">
+      <div class="modal-pdf-titulo" id="modal-pdf-titulo">Boletín</div>
+      <div class="modal-pdf-acciones">
+        <a href="#" target="_blank" rel="noopener" id="link-abrir-pestana">Abrir en pestaña nueva</a>
+        <button type="button" class="ghost" id="btn-cerrar-visor">Cerrar ✕</button>
+      </div>
+    </div>
+    <iframe id="pdf-frame" class="modal-pdf-frame" title="Vista del boletín PDF" style="display:none;"></iframe>
+    <div class="modal-pdf-fallback" id="pdf-fallback">
+      No se pudo mostrar la vista previa acá. Probá con "Abrir en pestaña nueva".
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -318,7 +363,7 @@ function renderListado() {
         ${b.notas ? `<div class="boletin-notas">${esc(b.notas)}</div>` : ""}
       </div>
       <div class="boletin-acciones">
-        <button type="button" class="ghost btn-descargar" data-id="${b.id}">Descargar</button>
+        <button type="button" class="ghost btn-ver" data-id="${b.id}">Ver</button>
         ${esSecretario ? `
           <button type="button" class="ghost btn-editar" data-id="${b.id}">Editar</button>
           <button type="button" class="ghost btn-borrar" data-id="${b.id}" style="color:var(--danger); border-color:var(--danger);">Borrar</button>
@@ -327,8 +372,8 @@ function renderListado() {
     </div>
   `).join("");
 
-  cont.querySelectorAll(".btn-descargar").forEach((btn) => {
-    btn.addEventListener("click", () => descargarBoletin(btn.dataset.id));
+  cont.querySelectorAll(".btn-ver").forEach((btn) => {
+    btn.addEventListener("click", () => verBoletin(btn.dataset.id));
   });
   if (esSecretario) {
     cont.querySelectorAll(".btn-editar").forEach((btn) => {
@@ -344,13 +389,44 @@ $("buscador").addEventListener("input", renderListado);
 $("filtro-clasificacion").addEventListener("change", renderListado);
 $("filtro-anio").addEventListener("change", renderListado);
 
-async function descargarBoletin(id) {
+// ============================================================
+// VISOR DE PDF (embebido, sin descargar)
+// ============================================================
+async function verBoletin(id) {
   const b = boletinesCache.find((x) => String(x.id) === String(id));
   if (!b) return;
-  const { data, error } = await db.storage.from(BUCKET_BOLETINES).createSignedUrl(b.archivo_url, 120);
-  if (error || !data) { toast("No se pudo generar el link de descarga.", true); console.error(error); return; }
-  window.open(data.signedUrl, "_blank");
+
+  const { data, error } = await db.storage.from(BUCKET_BOLETINES).createSignedUrl(b.archivo_url, 600);
+  if (error || !data) { toast("No se pudo generar el link para ver el boletín.", true); console.error(error); return; }
+
+  const titulo = "Boletín de Novedades" + (b.numero ? " " + b.numero : "") + " — " + (MESES[b.mes - 1] || "") + " " + b.anio;
+  $("modal-pdf-titulo").textContent = titulo;
+  $("link-abrir-pestana").href = data.signedUrl;
+
+  const frame = $("pdf-frame");
+  $("pdf-fallback").style.display = "none";
+  frame.style.display = "block";
+  frame.onerror = () => {
+    frame.style.display = "none";
+    $("pdf-fallback").style.display = "flex";
+  };
+  frame.src = data.signedUrl;
+
+  $("modal-pdf").classList.add("abierto");
 }
+
+function cerrarVisor() {
+  $("modal-pdf").classList.remove("abierto");
+  $("pdf-frame").src = "about:blank";
+}
+
+$("btn-cerrar-visor").addEventListener("click", cerrarVisor);
+$("modal-pdf").addEventListener("click", (e) => {
+  if (e.target.id === "modal-pdf") cerrarVisor();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("modal-pdf").classList.contains("abierto")) cerrarVisor();
+});
 
 // ============================================================
 // ALTA / EDICIÓN (solo Secretario)
