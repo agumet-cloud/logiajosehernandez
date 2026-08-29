@@ -104,11 +104,19 @@
   }
   .modal-pdf-acciones a:hover { border-color:var(--gold); color:var(--gold-soft); }
   .modal-pdf-acciones button { width:auto; }
-  .modal-pdf-frame { flex:1; width:100%; border:none; background:#525659; }
-  .modal-pdf-fallback {
-    display:none; flex:1; align-items:center; justify-content:center;
+  .modal-pdf-acciones button:disabled { opacity:.4; cursor:default; }
+  .modal-pdf-pagina { font-size:.8rem; color:var(--muted); white-space:nowrap; padding:0 2px; }
+
+  .modal-pdf-body {
+    flex:1; overflow:auto; background:#525659;
+    display:flex; flex-direction:column; align-items:center; padding:18px 0;
+  }
+  .modal-pdf-body canvas { display:block; box-shadow:0 4px 18px rgba(0,0,0,.4); background:#fff; }
+  .modal-pdf-estado {
+    display:none; flex:1; width:100%; align-items:center; justify-content:center;
     text-align:center; padding:24px; color:var(--muted); font-size:.88rem;
   }
+  .modal-pdf-estado.visible { display:flex; }
 </style>
 </head>
 <body>
@@ -213,20 +221,32 @@
     <div class="modal-pdf-header">
       <div class="modal-pdf-titulo" id="modal-pdf-titulo">Boletín</div>
       <div class="modal-pdf-acciones">
+        <button type="button" class="ghost" id="btn-pagina-ant" title="Página anterior">‹</button>
+        <span class="modal-pdf-pagina" id="modal-pdf-pagina"></span>
+        <button type="button" class="ghost" id="btn-pagina-sig" title="Página siguiente">›</button>
         <a href="#" target="_blank" rel="noopener" id="link-abrir-pestana">Abrir en pestaña nueva</a>
         <button type="button" class="ghost" id="btn-cerrar-visor">Cerrar ✕</button>
       </div>
     </div>
-    <iframe id="pdf-frame" class="modal-pdf-frame" title="Vista del boletín PDF" style="display:none;"></iframe>
-    <div class="modal-pdf-fallback" id="pdf-fallback">
-      No se pudo mostrar la vista previa acá. Probá con "Abrir en pestaña nueva".
+    <div class="modal-pdf-body" id="modal-pdf-body">
+      <canvas id="pdf-canvas" style="display:none;"></canvas>
+      <div class="modal-pdf-estado" id="pdf-estado">Cargando…</div>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../../shared/supabase-client.js"></script>
-<script>
+<script type="module">
+// El visor de boletines renderiza el PDF con PDF.js (canvas), en vez de
+// dejar que cada navegador lo maneje a su manera: los celulares (Chrome
+// Android en particular) no muestran un PDF embebido en un <iframe> —
+// lo tratan como una descarga. Renderizando nosotros mismos con PDF.js
+// el resultado es igual en compu y en celu.
+import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.worker.min.mjs";
+
 // ============================================================
 // Estado en memoria
 // ============================================================
@@ -241,6 +261,13 @@ let esSecretario = false;
 let miHermanoId = null;
 let boletinesCache = [];
 let editandoId = null; // null = alta nueva; si no, id del boletín que se está editando
+
+// ---- estado del visor de PDF ----
+let pdfDocActual = null;
+let paginaPdfActual = 1;
+let totalPaginasPdf = 0;
+let renderEnCurso = false;
+let renderPendiente = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -390,8 +417,65 @@ $("filtro-clasificacion").addEventListener("change", renderListado);
 $("filtro-anio").addEventListener("change", renderListado);
 
 // ============================================================
-// VISOR DE PDF (embebido, sin descargar)
+// VISOR DE PDF (embebido, sin descargar — renderizado con PDF.js)
 // ============================================================
+function mostrarEstadoPdf(texto) {
+  const estado = $("pdf-estado");
+  if (texto) {
+    estado.textContent = texto;
+    estado.classList.add("visible");
+    $("pdf-canvas").style.display = "none";
+  } else {
+    estado.classList.remove("visible");
+    $("pdf-canvas").style.display = "block";
+  }
+}
+
+function actualizarControlesPagina() {
+  $("modal-pdf-pagina").textContent = totalPaginasPdf ? `${paginaPdfActual} / ${totalPaginasPdf}` : "";
+  $("btn-pagina-ant").disabled = paginaPdfActual <= 1;
+  $("btn-pagina-sig").disabled = paginaPdfActual >= totalPaginasPdf;
+}
+
+async function renderPaginaPdf(numeroPagina) {
+  if (!pdfDocActual) return;
+  if (renderEnCurso) { renderPendiente = numeroPagina; return; }
+  renderEnCurso = true;
+
+  try {
+    const pagina = await pdfDocActual.getPage(numeroPagina);
+    const contenedor = $("modal-pdf-body");
+    const anchoDisponible = Math.max(contenedor.clientWidth - 32, 240);
+    const viewportBase = pagina.getViewport({ scale: 1 });
+    const escala = anchoDisponible / viewportBase.width;
+    const dpr = window.devicePixelRatio || 1;
+    const viewport = pagina.getViewport({ scale: escala * dpr });
+
+    const canvas = $("pdf-canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    canvas.style.width = (viewport.width / dpr) + "px";
+    canvas.style.height = (viewport.height / dpr) + "px";
+
+    await pagina.render({ canvasContext: ctx, viewport }).promise;
+
+    paginaPdfActual = numeroPagina;
+    mostrarEstadoPdf(null);
+    actualizarControlesPagina();
+  } catch (err) {
+    console.error(err);
+    mostrarEstadoPdf("No se pudo mostrar esta página. Probá con \"Abrir en pestaña nueva\".");
+  } finally {
+    renderEnCurso = false;
+    if (renderPendiente !== null) {
+      const siguiente = renderPendiente;
+      renderPendiente = null;
+      renderPaginaPdf(siguiente);
+    }
+  }
+}
+
 async function verBoletin(id) {
   const b = boletinesCache.find((x) => String(x.id) === String(id));
   if (!b) return;
@@ -402,30 +486,49 @@ async function verBoletin(id) {
   const titulo = "Boletín de Novedades" + (b.numero ? " " + b.numero : "") + " — " + (MESES[b.mes - 1] || "") + " " + b.anio;
   $("modal-pdf-titulo").textContent = titulo;
   $("link-abrir-pestana").href = data.signedUrl;
-
-  const frame = $("pdf-frame");
-  $("pdf-fallback").style.display = "none";
-  frame.style.display = "block";
-  frame.onerror = () => {
-    frame.style.display = "none";
-    $("pdf-fallback").style.display = "flex";
-  };
-  frame.src = data.signedUrl;
-
+  $("modal-pdf-pagina").textContent = "";
   $("modal-pdf").classList.add("abierto");
+  mostrarEstadoPdf("Cargando…");
+
+  try {
+    pdfDocActual = await pdfjsLib.getDocument(data.signedUrl).promise;
+    totalPaginasPdf = pdfDocActual.numPages;
+    paginaPdfActual = 1;
+    await renderPaginaPdf(1);
+  } catch (err) {
+    console.error(err);
+    mostrarEstadoPdf("No se pudo mostrar la vista previa acá. Probá con \"Abrir en pestaña nueva\".");
+  }
 }
 
 function cerrarVisor() {
   $("modal-pdf").classList.remove("abierto");
-  $("pdf-frame").src = "about:blank";
+  if (pdfDocActual) {
+    pdfDocActual.destroy();
+    pdfDocActual = null;
+  }
+  totalPaginasPdf = 0;
+  paginaPdfActual = 1;
+  renderPendiente = null;
+  const canvas = $("pdf-canvas");
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
 }
 
 $("btn-cerrar-visor").addEventListener("click", cerrarVisor);
+$("btn-pagina-ant").addEventListener("click", () => {
+  if (paginaPdfActual > 1) renderPaginaPdf(paginaPdfActual - 1);
+});
+$("btn-pagina-sig").addEventListener("click", () => {
+  if (paginaPdfActual < totalPaginasPdf) renderPaginaPdf(paginaPdfActual + 1);
+});
 $("modal-pdf").addEventListener("click", (e) => {
   if (e.target.id === "modal-pdf") cerrarVisor();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && $("modal-pdf").classList.contains("abierto")) cerrarVisor();
+  if (!$("modal-pdf").classList.contains("abierto")) return;
+  if (e.key === "Escape") cerrarVisor();
+  if (e.key === "ArrowLeft" && paginaPdfActual > 1) renderPaginaPdf(paginaPdfActual - 1);
+  if (e.key === "ArrowRight" && paginaPdfActual < totalPaginasPdf) renderPaginaPdf(paginaPdfActual + 1);
 });
 
 // ============================================================
