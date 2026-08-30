@@ -1,0 +1,1553 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071b14">
+<title>Tesorería · Resp∴ Log∴ José Hernández N° 75</title>
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+
+  .wrap { max-width:1000px; margin:0 auto; padding:32px 20px 80px; }
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:20px; flex-wrap:wrap;
+  }
+  .topbar .left { display:flex; flex-direction:column; gap:2px; }
+  .topbar-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .topbar-actions button { width:auto; }
+
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:26px; }
+  .tabs button { width:auto; }
+  .tabs button.activo { border-color:var(--gold); color:var(--gold-soft); background:rgba(201,168,93,.1); }
+
+  .seccion { display:none; }
+  .seccion.activa { display:block; }
+
+  .toast {
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+    background:var(--green-3); color:var(--cream); border:1px solid var(--gold);
+    padding:10px 20px; border-radius:20px; font-size:.85rem; z-index:500;
+    box-shadow:0 6px 24px rgba(0,0,0,.4);
+  }
+  .toast.err { border-color:var(--danger); color:var(--danger); }
+
+  input[type="month"]::-webkit-calendar-picker-indicator,
+  input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.7; cursor:pointer; }
+
+  /* ---- stat cards ---- */
+  .stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:8px; }
+  @media (max-width:640px) { .stats { grid-template-columns:1fr; } }
+  .stat { padding:18px 20px; }
+  .stat .kicker { margin-bottom:4px; }
+  .stat .valor { font-family:'Cormorant Garamond', serif; font-weight:600; font-size:1.7rem; }
+  .stat.ingresos .valor { color:var(--ok, #7fbf94); }
+  .stat.egresos .valor { color:var(--danger); }
+  .stat.saldo .valor.pos { color:var(--gold-soft); }
+  .stat.saldo .valor.neg { color:var(--danger); }
+
+  .margen-nota {
+    display:flex; gap:18px; flex-wrap:wrap; align-items:center;
+    font-size:.82rem; color:var(--muted); margin:8px 0 18px; padding:0 2px;
+  }
+  .margen-nota b { color:var(--cream); font-weight:500; }
+  .margen-nota button { margin-left:auto; }
+
+  .panel-config { padding:18px; margin-bottom:18px; }
+  .panel-config h3 { margin-top:0; font-size:1rem; }
+  .config-bloque { margin-bottom:18px; }
+  .config-bloque:last-child { margin-bottom:0; }
+  .config-actual { font-size:.82rem; color:var(--muted); margin-bottom:8px; }
+  .config-actual b { color:var(--cream); }
+  .config-fila { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+  .config-fila .campo { flex:1 1 140px; margin-bottom:0; }
+  .config-fila button { width:auto; flex:0 0 auto; }
+
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; align-items:flex-end; }
+  .toolbar .campo { flex:1 1 200px; margin-bottom:0; }
+  .toolbar .campo.chico { flex:0 1 170px; }
+  .campo { margin-bottom:16px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  @media (max-width:640px) { .grid2, .grid3 { grid-template-columns:1fr; } }
+
+  .card-header {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:18px 18px 0; flex-wrap:wrap;
+  }
+  .card-header h2 { font-size:1.05rem; margin:0; }
+
+  .empty-state { text-align:center; padding:40px 16px; color:var(--muted); font-size:.9rem; }
+
+  .mov-row {
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    padding:14px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .mov-row:last-child { border-bottom:none; }
+  .mov-info { min-width:0; flex:1 1 280px; }
+  .mov-titulo { font-size:.95rem; color:var(--cream); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .mov-sub { color:var(--muted); font-size:.8rem; margin-top:3px; }
+  .mov-sub a { color:var(--gold-soft); text-decoration:none; }
+  .mov-sub a:hover { text-decoration:underline; }
+  .mov-monto { font-size:1rem; font-weight:500; white-space:nowrap; }
+  .mov-monto.pos { color:var(--ok, #7fbf94); }
+  .mov-monto.neg { color:var(--danger); }
+  .mov-acciones { display:flex; gap:6px; flex-wrap:wrap; align-items:flex-start; }
+  .mov-acciones button { width:auto; padding:6px 10px; font-size:.74rem; }
+
+  .pill {
+    display:inline-block; font-size:.68rem; letter-spacing:.03em; padding:3px 10px;
+    border-radius:20px; border:1px solid var(--line); white-space:nowrap;
+  }
+  .pill.cuota { color:var(--gold-soft); border-color:var(--gold); background:rgba(201,168,93,.12); }
+  .pill.general { color:var(--muted); }
+  .pill.ajuste { color:var(--cream); border-color:var(--line); background:rgba(238,232,216,.06); }
+  .pill.delegacion { color:var(--cream); border-color:var(--danger); background:rgba(217,123,108,.14); }
+
+  /* ---- mi cuenta ---- */
+  .cuenta-resumen { padding:24px 22px; margin-bottom:20px; }
+  .cuenta-resumen .estado-deuda { font-family:'Cormorant Garamond', serif; font-weight:600; font-size:2.1rem; margin:6px 0; }
+  .cuenta-resumen .estado-deuda.debe { color:var(--danger); }
+  .cuenta-resumen .estado-deuda.aldia { color:var(--ok, #7fbf94); }
+  .cuenta-resumen .estado-deuda.sinrevisar { color:var(--muted); font-size:1.3rem; }
+
+  /* ---- formulario ---- */
+  .form-card { padding:20px; margin-bottom:20px; }
+  .tipo-selector { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .tipo-selector button { width:auto; flex:1 1 140px; }
+  .campos-tipo { display:none; }
+  .campos-tipo.activo { display:block; }
+  .botones { display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+  .botones button { width:auto; }
+  .signo-toggle { display:flex; gap:8px; }
+  .signo-toggle button { flex:1; width:auto; }
+  .signo-toggle button.activo { border-color:var(--gold); color:var(--gold-soft); background:rgba(201,168,93,.1); }
+  .obligatorio { color:var(--danger); font-size:.75rem; }
+
+  /* ---- recibo / comprobante para exportar (fuera de pantalla) ---- */
+  .recibo {
+    width:100%; background:#fdfaf2; color:#2a2318;
+    border-radius:4px; padding:40px 44px; font-family:'Cormorant Garamond', Georgia, serif;
+    -webkit-text-size-adjust:100%; text-size-adjust:100%;
+  }
+  .recibo .simbolo { text-align:center; font-size:1.6rem; color:#a3823f; margin-bottom:6px; }
+  .recibo .titulo-recibo {
+    text-align:center; text-transform:uppercase; letter-spacing:.14em;
+    font-family:Georgia,sans-serif; font-size:.75rem; color:#7a6a45; margin-bottom:2px;
+  }
+  .recibo .nombre-logia { text-align:center; color:#2a2318; margin:2px 0 18px; font-size:1.15rem; font-weight:600; }
+  .recibo .divisor { border:none; border-top:1px solid #cdbd93; margin:16px 0; }
+  .recibo .fila { display:flex; justify-content:space-between; padding:6px 0; font-size:1.02rem; gap:12px; }
+  .recibo .label-r { color:#6b5f45; font-family:Georgia,sans-serif; font-size:.78rem; letter-spacing:.03em; text-transform:uppercase; }
+  .recibo .monto-grande { text-align:center; font-size:2.1rem; font-weight:600; margin:14px 0; color:#2a2318; }
+  .recibo .firma { margin-top:34px; text-align:center; }
+  .recibo .firma .linea { border-top:1px solid #2a2318; width:220px; margin:0 auto 6px; }
+  .recibo .firma .nombre-firma { font-family:Georgia,sans-serif; font-size:.82rem; }
+  .recibo .firma .cargo-firma { font-family:Georgia,sans-serif; font-size:.72rem; color:#7a6a45; text-transform:uppercase; letter-spacing:.05em; }
+  .recibo .numero-recibo { text-align:right; font-family:Georgia,sans-serif; font-size:.72rem; color:#7a6a45; margin-bottom:10px; }
+
+  .nota-demo { font-size:.78rem; color:var(--muted); margin-top:10px; text-align:center; }
+
+  /* ---- grilla anual ---- */
+  .grilla-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+  .grilla-toolbar .campo { flex:0 1 160px; margin-bottom:0; }
+  .grilla-leyenda { display:flex; gap:16px; flex-wrap:wrap; font-size:.78rem; color:var(--muted); }
+  .grilla-leyenda span { display:inline-flex; align-items:center; gap:6px; }
+  .grilla-leyenda i { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .i-pagado { background:var(--ok, #7fbf94); }
+  .i-debe { background:var(--danger); }
+  .i-sinrevisar { background:var(--muted); opacity:.5; }
+  .i-noaplica { background:transparent; border:1px solid var(--line); }
+
+  .tabla-scroll { overflow-x:auto; }
+  table.grilla { width:100%; border-collapse:collapse; font-size:.82rem; white-space:nowrap; }
+  table.grilla th, table.grilla td { padding:10px 8px; text-align:center; border-bottom:1px solid var(--line); }
+  table.grilla th { color:var(--muted); font-weight:400; font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }
+  table.grilla td.nombre-hermano, table.grilla th.nombre-hermano {
+    text-align:left; position:sticky; left:0; background:var(--green-1); padding-left:16px; min-width:150px;
+  }
+  table.grilla .celda { width:30px; height:24px; border-radius:4px; display:inline-block; cursor:default; }
+  table.grilla .celda.clicable { cursor:pointer; }
+  table.grilla td.debe-total, table.grilla th.debe-total {
+    text-align:right; padding-right:16px; font-weight:500; white-space:nowrap;
+  }
+  table.grilla td.debe-total.debe { color:var(--danger); }
+  table.grilla td.debe-total.aldia { color:var(--ok, #7fbf94); }
+  table.grilla td.debe-total.sinrevisar { color:var(--muted); font-weight:300; }
+
+  /* ---- visor de PDF (recibos / comprobantes) ---- */
+  .modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(3,17,12,.82);
+    z-index:300; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.abierto { display:flex; }
+  .modal-pdf-card {
+    background:var(--green-1); border:1px solid var(--line); border-radius:10px;
+    width:100%; max-width:900px; height:88vh; display:flex; flex-direction:column; overflow:hidden;
+  }
+  .modal-pdf-header {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:12px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .modal-pdf-titulo { font-size:.95rem; color:var(--cream); }
+  .modal-pdf-acciones { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .modal-pdf-acciones a {
+    text-decoration:none; display:inline-flex; align-items:center;
+    padding:7px 12px; font-size:.78rem; border-radius:6px;
+    border:1px solid var(--line); color:var(--muted); transition:.2s;
+  }
+  .modal-pdf-acciones a:hover { border-color:var(--gold); color:var(--gold-soft); }
+  .modal-pdf-acciones button { width:auto; }
+  .modal-pdf-acciones button:disabled { opacity:.4; cursor:default; }
+  .modal-pdf-pagina { font-size:.8rem; color:var(--muted); white-space:nowrap; padding:0 2px; }
+
+  .modal-pdf-body {
+    flex:1; overflow:auto; background:#525659;
+    display:flex; flex-direction:column; align-items:center; padding:18px 0;
+  }
+  .modal-pdf-body canvas { display:block; box-shadow:0 4px 18px rgba(0,0,0,.4); background:#fff; }
+  .modal-pdf-estado {
+    display:none; flex:1; width:100%; align-items:center; justify-content:center;
+    text-align:center; padding:24px; color:var(--muted); font-size:.88rem;
+  }
+  .modal-pdf-estado.visible { display:flex; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="left">
+      <div class="kicker">Resp∴ Log∴ José Hernández N° 75</div>
+      <h1 style="font-size:1.6rem; margin:4px 0 0;">Tesorería</h1>
+      <p class="muted" id="subtitulo" style="margin:2px 0 0;">Movimientos, cuotas y recibos</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="ghost" id="btn-panel">← Panel</button>
+      <button class="ghost" id="btn-salir">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div id="vista-cargando" class="muted">Cargando…</div>
+
+  <div id="vista-error" style="display:none;">
+    <div class="card" style="padding:20px; border-color:var(--danger);">
+      <p id="texto-error" style="color:var(--danger); margin:0;"></p>
+    </div>
+  </div>
+
+  <div id="vista-app" style="display:none;">
+
+    <div class="tabs" id="tabs">
+      <button class="ghost tab activo" data-tab="libro" id="tab-libro">Libro completo</button>
+      <button class="ghost tab" data-tab="cuenta" id="tab-cuenta">Mi cuenta</button>
+      <button class="ghost tab" data-tab="form" id="tab-form">Nuevo movimiento</button>
+      <button class="ghost tab" data-tab="grilla" id="tab-grilla">Grilla anual</button>
+    </div>
+
+    <!-- ===================== LIBRO COMPLETO ===================== -->
+    <div class="seccion activa" id="seccion-libro">
+      <div class="stats">
+        <div class="card stat ingresos">
+          <div class="kicker">Ingresos totales</div>
+          <div class="valor" id="stat-ingresos">—</div>
+        </div>
+        <div class="card stat egresos">
+          <div class="kicker">Egresos totales</div>
+          <div class="valor" id="stat-egresos">—</div>
+        </div>
+        <div class="card stat saldo">
+          <div class="kicker">Saldo total</div>
+          <div class="valor" id="stat-saldo">—</div>
+        </div>
+      </div>
+      <p class="nota-demo" style="margin:8px 0 18px; text-align:left;">Acumulado de todo lo cargado. Los ajustes no suman ni restan acá (son una corrección de deuda, no plata real); los pagos a la delegación sí restan, como cualquier egreso.</p>
+
+      <div class="margen-nota">
+        <span id="margen-cuota"></span>
+        <span id="margen-capitacion"></span>
+        <span id="margen-margen"></span>
+        <button class="ghost" id="btn-config-valores" type="button">⚙ Configurar cuota y cápita</button>
+      </div>
+
+      <div class="card panel-config" id="panel-config-valores" style="display:none;">
+        <h3>Cuota y cápita</h3>
+        <p class="muted" style="margin-top:-6px;">Cada cambio queda con fecha de vigencia — no pisa el valor anterior. Un hermano con meses atrasados sigue debiendo esos meses al monto viejo; solo los meses desde la vigencia nueva usan el monto nuevo.</p>
+
+        <div class="config-bloque">
+          <p class="config-actual" id="cfg-cuota-actual">Cuota logia — cargando…</p>
+          <div class="config-fila">
+            <div class="campo"><label for="cfg-cuota-monto">Nuevo monto</label><input id="cfg-cuota-monto" type="number" min="0" step="1" placeholder="$ 0"></div>
+            <div class="campo"><label for="cfg-cuota-desde">Vigente desde</label><input id="cfg-cuota-desde" type="month"></div>
+            <button class="ghost" type="button" id="btn-guardar-cuota">Guardar cuota nueva</button>
+          </div>
+        </div>
+
+        <div class="config-bloque">
+          <p class="config-actual" id="cfg-capitacion-actual">Cápita delegación — cargando…</p>
+          <div class="config-fila">
+            <div class="campo"><label for="cfg-capitacion-monto">Nuevo monto</label><input id="cfg-capitacion-monto" type="number" min="0" step="1" placeholder="$ 0"></div>
+            <div class="campo"><label for="cfg-capitacion-desde">Vigente desde</label><input id="cfg-capitacion-desde" type="month"></div>
+            <button class="ghost" type="button" id="btn-guardar-capitacion">Guardar cápita nueva</button>
+          </div>
+        </div>
+        <span class="error-msg" id="config-error"></span>
+      </div>
+
+      <div class="toolbar">
+        <div class="campo">
+          <label for="lb-buscar">Buscar</label>
+          <input id="lb-buscar" type="text" placeholder="Hermano, categoría, nota…">
+        </div>
+        <div class="campo chico">
+          <label for="lb-tipo">Tipo</label>
+          <select id="lb-tipo">
+            <option value="">Todos</option>
+            <option value="cuota">Cuotas</option>
+            <option value="general">Generales</option>
+            <option value="ajuste">Ajustes</option>
+            <option value="delegacion">Delegación</option>
+          </select>
+        </div>
+        <div class="campo chico">
+          <label for="lb-mes">Mes (fecha)</label>
+          <input id="lb-mes" type="month">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Movimientos</h2></div>
+        <div id="lb-lista"></div>
+      </div>
+    </div>
+
+    <!-- ===================== MI CUENTA ===================== -->
+    <div class="seccion" id="seccion-cuenta">
+      <div class="card cuenta-resumen" id="cuenta-resumen"></div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><h2>Mi historial</h2></div>
+        <div id="mc-lista"></div>
+      </div>
+    </div>
+
+    <!-- ===================== NUEVO MOVIMIENTO ===================== -->
+    <div class="seccion" id="seccion-form">
+      <div class="card form-card">
+        <h3 style="margin-top:0;">Nuevo movimiento</h3>
+        <div class="tipo-selector" id="tipo-selector">
+          <button class="ghost tipo-btn activo" type="button" data-tipo="cuota">Cuota de H∴</button>
+          <button class="ghost tipo-btn" type="button" data-tipo="general">Ingreso/egreso general</button>
+          <button class="ghost tipo-btn" type="button" data-tipo="ajuste">Ajuste manual</button>
+          <button class="ghost tipo-btn" type="button" data-tipo="delegacion">Pago a la delegación</button>
+        </div>
+
+        <form id="form-movimiento">
+          <!-- CUOTA -->
+          <div class="campos-tipo activo" id="campos-cuota">
+            <div class="grid2">
+              <div class="campo">
+                <label for="c-hermano">Hermano</label>
+                <select id="c-hermano"></select>
+              </div>
+              <div class="campo">
+                <label for="c-periodo">Período (mes que paga)</label>
+                <input id="c-periodo" type="month">
+              </div>
+            </div>
+            <div class="grid3">
+              <div class="campo">
+                <label for="c-monto">Monto</label>
+                <input id="c-monto" type="number" min="0" step="1">
+              </div>
+              <div class="campo">
+                <label for="c-medio">Medio de pago</label>
+                <select id="c-medio">
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label for="c-fecha">Fecha del pago</label>
+                <input id="c-fecha" type="date">
+              </div>
+            </div>
+            <p class="muted" style="margin-top:-6px;">Al guardar se genera automáticamente el recibo en PDF.</p>
+          </div>
+
+          <!-- GENERAL -->
+          <div class="campos-tipo" id="campos-general">
+            <div class="campo">
+              <label>Tipo de movimiento</label>
+              <div class="signo-toggle" id="g-signo">
+                <button class="ghost activo" type="button" data-signo="ingreso">Ingreso</button>
+                <button class="ghost" type="button" data-signo="egreso">Egreso</button>
+              </div>
+            </div>
+            <div class="campo">
+              <label for="g-categoria">Categoría (texto libre)</label>
+              <input id="g-categoria" type="text" placeholder="Ej: Alquiler, Ágape, Donación…">
+            </div>
+            <div class="grid3">
+              <div class="campo">
+                <label for="g-monto">Monto</label>
+                <input id="g-monto" type="number" min="0" step="1">
+              </div>
+              <div class="campo">
+                <label for="g-medio">Medio de pago</label>
+                <select id="g-medio">
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label for="g-fecha">Fecha</label>
+                <input id="g-fecha" type="date">
+              </div>
+            </div>
+          </div>
+
+          <!-- AJUSTE -->
+          <div class="campos-tipo" id="campos-ajuste">
+            <div class="grid2">
+              <div class="campo">
+                <label for="a-hermano">Hermano</label>
+                <select id="a-hermano"></select>
+              </div>
+              <div class="campo">
+                <label>Efecto</label>
+                <div class="signo-toggle" id="a-efecto">
+                  <button class="ghost activo" type="button" data-efecto="reduce">Reduce deuda</button>
+                  <button class="ghost" type="button" data-efecto="aumenta">Aumenta deuda</button>
+                </div>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="campo">
+                <label for="a-monto">Monto</label>
+                <input id="a-monto" type="number" min="0" step="1">
+              </div>
+              <div class="campo">
+                <label for="a-fecha">Fecha</label>
+                <input id="a-fecha" type="date">
+              </div>
+            </div>
+            <div class="campo">
+              <label for="a-nota">Nota (obligatoria)</label>
+              <textarea id="a-nota" rows="2" placeholder="Ej: pago en efectivo de mayo que no había quedado registrado…"></textarea>
+            </div>
+          </div>
+
+          <!-- DELEGACIÓN -->
+          <div class="campos-tipo" id="campos-delegacion">
+            <div class="grid2">
+              <div class="campo">
+                <label for="d-periodo">Período (mes que cubre el pago)</label>
+                <input id="d-periodo" type="month">
+              </div>
+              <div class="campo">
+                <label for="d-medio">Medio de pago</label>
+                <select id="d-medio">
+                  <option value="transferencia">Transferencia</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="campo">
+                <label for="d-monto">Monto pagado</label>
+                <input id="d-monto" type="number" min="0" step="1">
+                <p class="muted" id="d-sugerido" style="margin-top:6px;"></p>
+              </div>
+              <div class="campo">
+                <label for="d-fecha">Fecha del pago</label>
+                <input id="d-fecha" type="date">
+              </div>
+            </div>
+            <div class="campo">
+              <label for="d-comprobante">Comprobante <span class="obligatorio">— obligatorio</span></label>
+              <input id="d-comprobante" type="file" accept="image/*,application/pdf">
+              <p class="muted" style="margin-top:6px;">Foto del cajero, captura de la transferencia o PDF — lo que tengas a mano. No se puede guardar sin este archivo.</p>
+            </div>
+            <div class="campo">
+              <label for="d-nota">Nota (opcional)</label>
+              <textarea id="d-nota" rows="2" placeholder="Ej: incluye recargo por mora del mes anterior…"></textarea>
+            </div>
+          </div>
+
+          <span class="error-msg" id="form-error"></span>
+          <div class="botones">
+            <button class="ghost" type="button" id="btn-cancelar-form">Limpiar</button>
+            <button class="primary" type="submit" id="btn-guardar-mov" style="width:auto;">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===================== GRILLA ANUAL ===================== -->
+    <div class="seccion" id="seccion-grilla">
+      <div class="grilla-toolbar">
+        <div class="campo">
+          <label for="gr-anio">Año</label>
+          <select id="gr-anio"></select>
+        </div>
+        <div class="grilla-leyenda">
+          <span><i class="celda i-pagado"></i> Pagado</span>
+          <span><i class="celda i-debe"></i> Debe</span>
+          <span><i class="celda i-sinrevisar"></i> Sin revisar</span>
+          <span><i class="celda i-noaplica"></i> No aplica / futuro</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 id="gr-titulo-cuotas">Cuotas</h2>
+          <span class="muted" style="font-size:.78rem;">Deuda total de la logia: <b id="gr-deuda-total" style="color:var(--danger);">—</b></span>
+        </div>
+        <div class="tabla-scroll" style="padding:8px 0 18px;">
+          <table class="grilla" id="gr-tabla-cuotas"></table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <div class="card-header"><h2 id="gr-titulo-delegacion">Pagos a la delegación</h2></div>
+        <div class="tabla-scroll" style="padding:8px 0 18px;">
+          <table class="grilla" id="gr-tabla-delegacion"></table>
+        </div>
+      </div>
+      <p class="nota-demo">"Debe total" usa el mismo cálculo que "Mi cuenta" para cada hermano. La fila de Delegación se pone en rojo apenas pasa un mes sin un pago cargado.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== VISOR DE PDF (recibos y comprobantes) ===================== -->
+<div class="modal-overlay" id="modal-pdf">
+  <div class="modal-pdf-card">
+    <div class="modal-pdf-header">
+      <div class="modal-pdf-titulo" id="modal-pdf-titulo">Documento</div>
+      <div class="modal-pdf-acciones">
+        <button type="button" class="ghost" id="btn-pagina-ant" title="Página anterior">‹</button>
+        <span class="modal-pdf-pagina" id="modal-pdf-pagina"></span>
+        <button type="button" class="ghost" id="btn-pagina-sig" title="Página siguiente">›</button>
+        <a href="#" target="_blank" rel="noopener" id="link-abrir-pestana">Abrir en pestaña nueva</a>
+        <button type="button" class="ghost" id="btn-cerrar-visor">Cerrar ✕</button>
+      </div>
+    </div>
+    <div class="modal-pdf-body" id="modal-pdf-body">
+      <canvas id="pdf-canvas" style="display:none;"></canvas>
+      <img id="pdf-imagen" style="display:none; max-width:100%;">
+      <div class="modal-pdf-estado" id="pdf-estado">Cargando…</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../shared/supabase-client.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script type="module">
+// El visor de recibos/comprobantes en PDF usa PDF.js (canvas), igual que en
+// Boletines: los celulares (Chrome Android en particular) tratan un PDF
+// embebido en <iframe> como una descarga en vez de mostrarlo. Renderizando
+// nosotros mismos con PDF.js el resultado es igual en compu y en celu. Los
+// comprobantes de "Pago a la delegación" pueden ser una foto (no PDF) — para
+// esos casos se usa un <img> normal en el mismo visor (ver abrirDocumento).
+import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.worker.min.mjs";
+
+// ============================================================
+// Estado en memoria
+// ============================================================
+const BUCKET_RECIBOS = "recibos";
+const BUCKET_COMPROBANTES = "comprobantes";
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+const MES_ABREV = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+let sesion = null;
+let puedeCargar = false;   // Tesorero, Secretario o Venerable Maestro
+let esMaestro = false;     // grado_orden === 3 (ve el libro aunque no tenga cargo)
+let miHermanoId = null;
+let miNombre = "";
+let cargoEmisorNombre = "Tesorería"; // para la firma del recibo
+
+let hermanosCache = [];             // solo se carga si puedeCargar || esMaestro
+let tesoreriaHermanosCache = [];    // idem — adeuda_desde por hermano
+let cuotaValoresCache = [];         // orden desc por vigente_desde
+let capitacionValoresCache = [];    // idem
+let movimientosCache = [];
+let miDeuda = null;
+
+let tipoActual = "cuota";
+let signoGeneralActual = "ingreso";
+let efectoAjusteActual = "reduce";
+
+let deudaPorHermano = new Map();    // se recalcula al entrar a la Grilla
+let grillaAnioActual = null;
+
+// ---- estado del visor de recibos/comprobantes ----
+let pdfDocActual = null;
+let paginaPdfActual = 1;
+let totalPaginasPdf = 0;
+let renderEnCurso = false;
+let renderPendiente = null;
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function toast(msg, esError) {
+  const el = document.createElement("div");
+  el.className = "toast" + (esError ? " err" : "");
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+function hoyISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function fmtMoneda(n) {
+  const v = Number(n) || 0;
+  const signo = v < 0 ? "-" : "";
+  return `${signo}$ ${Math.round(Math.abs(v)).toLocaleString("es-AR")}`;
+}
+
+// Acepta "YYYY-MM-DD" o "YYYY-MM".
+function fmtMes(iso) {
+  if (!iso) return "—";
+  const [y, m] = iso.split("-").map(Number);
+  return `${MESES[m - 1] || "—"} ${y}`;
+}
+
+function fmtFecha(iso) {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+}
+
+function capitaliza(s) {
+  if (!s) return "—";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function nombreDe(id) {
+  if (!id) return "—";
+  if (id === miHermanoId) return miNombre;
+  const h = hermanosCache.find((x) => x.id === id);
+  return h ? h.nombre_completo : "—";
+}
+
+function mostrarVista(id) {
+  ["vista-cargando", "vista-error", "vista-app"].forEach((v) => {
+    $(v).style.display = v === id ? "block" : "none";
+  });
+}
+
+function mostrarError(msg) {
+  $("texto-error").textContent = msg;
+  mostrarVista("vista-error");
+}
+
+// ============================================================
+// Arranque
+// ============================================================
+(async () => {
+  sesion = await exigirSesion();
+  if (!sesion) return;
+
+  const [{ data: pc, error: e1 }, { data: sm, error: e2 }, { data: h, error: e3 }] = await Promise.all([
+    db.rpc("puede_cargar_tesoreria"),
+    db.rpc("soy_maestro"),
+    db.from("hermanos").select("id, nombre_completo").eq("auth_user_id", sesion.user.id).maybeSingle(),
+  ]);
+  if (e1) console.error("puede_cargar_tesoreria()", e1);
+  if (e2) console.error("soy_maestro()", e2);
+  if (e3) console.error("hermanos (propio)", e3);
+
+  puedeCargar = !!pc;
+  esMaestro = !!sm;
+  miHermanoId = h?.id || null;
+  miNombre = h?.nombre_completo || "";
+
+  if (!miHermanoId) {
+    mostrarError("Tu usuario todavía no tiene un legajo cargado en el sistema — no se puede usar Tesorería sin eso.");
+    return;
+  }
+
+  configurarTabsPorRol();
+  await cargarDatosBase();
+  mostrarVista("vista-app");
+})();
+
+$("btn-panel").addEventListener("click", () => window.location.href = "../panel.html");
+$("btn-salir").addEventListener("click", async () => {
+  await db.auth.signOut();
+  window.location.href = "../index.html";
+});
+
+// ============================================================
+// Tabs (visibilidad según rol)
+// ============================================================
+function activarTab(tab) {
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("activo", b.dataset.tab === tab));
+  document.querySelectorAll(".seccion").forEach((s) => s.classList.toggle("activa", s.id === "seccion-" + tab));
+  if (tab === "grilla") cargarGrilla();
+}
+document.querySelectorAll("#tabs button").forEach((b) => {
+  b.addEventListener("click", () => activarTab(b.dataset.tab));
+});
+
+function configurarTabsPorRol() {
+  // Libro completo y Grilla: los ve quien puede cargar Tesorería (Tesorero/
+  // Secretario/VM) y cualquier Maestro (mismo criterio que las políticas RLS
+  // de tesoreria_movimientos y tesoreria_hermanos). Un H∴ que no es Maestro
+  // solo tiene sentido que vea "Mi cuenta" — sus propias filas.
+  const puedeVerTodo = puedeCargar || esMaestro;
+  $("tab-libro").style.display = puedeVerTodo ? "" : "none";
+  $("tab-grilla").style.display = puedeVerTodo ? "" : "none";
+  $("tab-form").style.display = puedeCargar ? "" : "none";
+  $("subtitulo").textContent = puedeCargar
+    ? "Movimientos, cuotas y recibos"
+    : (esMaestro ? "Libro completo y tu cuenta" : "Tu cuenta");
+  if (!puedeVerTodo) activarTab("cuenta");
+}
+
+// ============================================================
+// Carga inicial de datos
+// ============================================================
+async function cargarDatosBase() {
+  const puedeVerTodo = puedeCargar || esMaestro;
+
+  const tareas = [
+    db.rpc("mi_deuda"),
+    db.from("tesoreria_cuota_valores").select("*").order("vigente_desde", { ascending: false }),
+    db.from("tesoreria_capitacion_valores").select("*").order("vigente_desde", { ascending: false }),
+    db.from("tesoreria_movimientos").select("*").order("creado_en", { ascending: false }),
+  ];
+  if (puedeVerTodo) {
+    tareas.push(db.from("hermanos").select("id, nombre_completo, grado_id, activo").order("nombre_completo"));
+    tareas.push(db.from("tesoreria_hermanos").select("*"));
+  }
+  if (puedeCargar) {
+    tareas.push(
+      db.from("hermano_cargos").select("cargos(nombre)").eq("hermano_id", miHermanoId).eq("vigente", true)
+    );
+  }
+
+  const resultados = await Promise.all(tareas);
+  resultados.forEach((r) => { if (r?.error) console.error(r.error); });
+
+  miDeuda = resultados[0].data ?? null;
+  cuotaValoresCache = resultados[1].data || [];
+  capitacionValoresCache = resultados[2].data || [];
+  movimientosCache = resultados[3].data || [];
+
+  let idx = 4;
+  if (puedeVerTodo) {
+    hermanosCache = resultados[idx].data || []; idx++;
+    tesoreriaHermanosCache = resultados[idx].data || []; idx++;
+  }
+  if (puedeCargar) {
+    const nombresCargo = (resultados[idx]?.data || []).map((c) => c.cargos?.nombre).filter(Boolean);
+    const orden = ["Tesorero", "Secretario", "Venerable Maestro"];
+    cargoEmisorNombre = orden.find((n) => nombresCargo.includes(n)) || nombresCargo[0] || "Tesorería";
+    poblarSelectsHermanos();
+  }
+
+  renderMargenNota();
+  renderLibro();
+  renderCuenta();
+}
+
+async function recargarMovimientos() {
+  const { data, error } = await db.from("tesoreria_movimientos").select("*").order("creado_en", { ascending: false });
+  if (error) { console.error(error); return; }
+  movimientosCache = data || [];
+  if ($("tab-grilla").classList.contains("activo")) cargarGrilla();
+}
+
+async function recargarValores() {
+  const [{ data: cv, error: e1 }, { data: kv, error: e2 }] = await Promise.all([
+    db.from("tesoreria_cuota_valores").select("*").order("vigente_desde", { ascending: false }),
+    db.from("tesoreria_capitacion_valores").select("*").order("vigente_desde", { ascending: false }),
+  ]);
+  if (e1) console.error(e1);
+  if (e2) console.error(e2);
+  cuotaValoresCache = cv || [];
+  capitacionValoresCache = kv || [];
+}
+
+// ============================================================
+// LIBRO COMPLETO — stats, margen y configuración de valores
+// ============================================================
+function renderMargenNota() {
+  const cuota = cuotaValoresCache[0];
+  const capitacion = capitacionValoresCache[0];
+
+  $("margen-cuota").innerHTML = cuota
+    ? `Cuota logia vigente: <b>${fmtMoneda(cuota.monto)}</b> (desde ${fmtMes(cuota.vigente_desde)})`
+    : `Cuota logia: <b>sin configurar</b>`;
+  $("margen-capitacion").innerHTML = capitacion
+    ? `Cápita delegación vigente: <b>${fmtMoneda(capitacion.monto)}</b> (desde ${fmtMes(capitacion.vigente_desde)})`
+    : `Cápita delegación: <b>sin configurar</b>`;
+  $("margen-margen").innerHTML = (cuota && capitacion)
+    ? `Margen por H∴: <b>${fmtMoneda(cuota.monto - capitacion.monto)}</b>`
+    : "";
+
+  $("cfg-cuota-actual").innerHTML = cuota
+    ? `Cuota logia — <b>${fmtMoneda(cuota.monto)}</b> desde ${fmtMes(cuota.vigente_desde)}`
+    : `Cuota logia — sin configurar todavía`;
+  $("cfg-capitacion-actual").innerHTML = capitacion
+    ? `Cápita delegación — <b>${fmtMoneda(capitacion.monto)}</b> desde ${fmtMes(capitacion.vigente_desde)}`
+    : `Cápita delegación — sin configurar todavía`;
+}
+
+$("btn-config-valores").addEventListener("click", () => {
+  const panel = $("panel-config-valores");
+  panel.style.display = panel.style.display === "none" ? "block" : "none";
+});
+
+$("btn-guardar-cuota").addEventListener("click", () => guardarValorHistorizado("cuota"));
+$("btn-guardar-capitacion").addEventListener("click", () => guardarValorHistorizado("capitacion"));
+
+async function guardarValorHistorizado(cual) {
+  $("config-error").textContent = "";
+  const prefijo = cual === "cuota" ? "cfg-cuota" : "cfg-capitacion";
+  const tabla = cual === "cuota" ? "tesoreria_cuota_valores" : "tesoreria_capitacion_valores";
+  const monto = Number($(`${prefijo}-monto`).value);
+  const desdeInput = $(`${prefijo}-desde`).value;
+
+  if (!(monto > 0)) { $("config-error").textContent = "Ingresá un monto válido."; return; }
+  if (!desdeInput) { $("config-error").textContent = "Elegí desde cuándo rige."; return; }
+
+  const vigente_desde = desdeInput + "-01";
+  const btn = $(`btn-guardar-${cual}`);
+  btn.disabled = true;
+
+  try {
+    // upsert por vigente_desde: si el Tesorero corrige el mismo mes dos
+    // veces, la segunda actualiza en vez de chocar contra el unique().
+    const { error } = await db.from(tabla).upsert(
+      { monto, vigente_desde, creado_por: miHermanoId },
+      { onConflict: "vigente_desde" }
+    );
+    if (error) throw error;
+
+    toast(cual === "cuota" ? "Cuota guardada." : "Cápita guardada.");
+    $(`${prefijo}-monto`).value = "";
+    $(`${prefijo}-desde`).value = "";
+    await recargarValores();
+    renderMargenNota();
+  } catch (err) {
+    console.error(err);
+    $("config-error").textContent = "No se pudo guardar. Probá de nuevo.";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderLibro() {
+  let ingresos = 0, egresos = 0;
+  movimientosCache.forEach((m) => {
+    if (m.tipo === "cuota") {
+      ingresos += Number(m.monto);
+    } else if (m.tipo === "general") {
+      if (m.signo === "ingreso") ingresos += Number(m.monto);
+      else egresos += Number(m.monto);
+    } else if (m.tipo === "delegacion") {
+      egresos += Number(m.monto);
+    }
+    // 'ajuste' no suma ni resta acá: es una corrección de deuda, no plata real.
+  });
+  const saldo = ingresos - egresos;
+
+  $("stat-ingresos").textContent = fmtMoneda(ingresos);
+  $("stat-egresos").textContent = fmtMoneda(egresos);
+  $("stat-saldo").textContent = fmtMoneda(saldo);
+  $("stat-saldo").classList.toggle("pos", saldo >= 0);
+  $("stat-saldo").classList.toggle("neg", saldo < 0);
+
+  renderListadoMovimientos();
+}
+
+function filaMovimiento(m) {
+  if (m.tipo === "cuota") {
+    return `
+      <div class="mov-row">
+        <div class="mov-info">
+          <div class="mov-titulo"><span>Cuota — ${esc(nombreDe(m.hermano_id))}</span><span class="pill cuota">Cuota</span></div>
+          <div class="mov-sub">
+            Período: ${fmtMes(m.periodo)} · Recibo N° ${String(m.numero_recibo).padStart(6, "0")} · ${fmtFecha(m.fecha)}
+            ${m.recibo_url ? ` · <a href="#" data-ver-doc="${m.id}">Ver recibo</a>` : " · Generando recibo…"}
+          </div>
+        </div>
+        <div class="mov-monto pos">+ ${fmtMoneda(m.monto)}</div>
+      </div>`;
+  }
+  if (m.tipo === "general") {
+    const esIngreso = m.signo === "ingreso";
+    return `
+      <div class="mov-row">
+        <div class="mov-info">
+          <div class="mov-titulo"><span>${esc(m.descripcion || "—")}</span><span class="pill general">General</span></div>
+          <div class="mov-sub">Medio: ${esc(capitaliza(m.medio_pago))} · ${fmtFecha(m.fecha)} · Cargado por ${esc(nombreDe(m.registrado_por))}</div>
+        </div>
+        <div class="mov-monto ${esIngreso ? "pos" : "neg"}">${esIngreso ? "+" : "−"} ${fmtMoneda(m.monto)}</div>
+      </div>`;
+  }
+  if (m.tipo === "ajuste") {
+    const reduce = Number(m.monto) >= 0;
+    return `
+      <div class="mov-row">
+        <div class="mov-info">
+          <div class="mov-titulo"><span>Ajuste — ${esc(nombreDe(m.hermano_id))}</span><span class="pill ajuste">Ajuste</span></div>
+          <div class="mov-sub">${esc(m.descripcion || "")} · ${fmtFecha(m.fecha)} · Cargado por ${esc(nombreDe(m.registrado_por))}</div>
+        </div>
+        <div class="mov-monto ${reduce ? "pos" : "neg"}">${reduce ? "Reduce" : "Aumenta"} ${fmtMoneda(Math.abs(m.monto))}</div>
+      </div>`;
+  }
+  // delegacion
+  return `
+    <div class="mov-row">
+      <div class="mov-info">
+        <div class="mov-titulo"><span>Pago a la delegación</span><span class="pill delegacion">Delegación</span></div>
+        <div class="mov-sub">
+          Período: ${fmtMes(m.periodo)} · Medio: ${esc(capitaliza(m.medio_pago))} · ${fmtFecha(m.fecha)} · Cargado por ${esc(nombreDe(m.registrado_por))}
+          ${m.comprobante_url ? ` · <a href="#" data-ver-doc="${m.id}">Ver comprobante</a>` : ""}
+          ${m.descripcion ? `<br>${esc(m.descripcion)}` : ""}
+        </div>
+      </div>
+      <div class="mov-monto neg">− ${fmtMoneda(m.monto)}</div>
+    </div>`;
+}
+
+function renderListadoMovimientos() {
+  const texto = $("lb-buscar").value.trim().toLowerCase();
+  const tipoFiltro = $("lb-tipo").value;
+  const mesFiltro = $("lb-mes").value; // "YYYY-MM"
+
+  const filtrados = movimientosCache.filter((m) => {
+    if (tipoFiltro && m.tipo !== tipoFiltro) return false;
+    if (mesFiltro && (m.fecha || "").slice(0, 7) !== mesFiltro) return false;
+    if (texto) {
+      const campos = [
+        m.hermano_id ? nombreDe(m.hermano_id) : "",
+        m.descripcion || "",
+        m.medio_pago || "",
+      ].join(" ").toLowerCase();
+      if (!campos.includes(texto)) return false;
+    }
+    return true;
+  });
+
+  const cont = $("lb-lista");
+  if (filtrados.length === 0) {
+    cont.innerHTML = movimientosCache.length === 0
+      ? '<div class="empty-state">Todavía no hay movimientos cargados.</div>'
+      : '<div class="empty-state">No hay movimientos que coincidan con la búsqueda.</div>';
+    return;
+  }
+
+  cont.innerHTML = filtrados.map((m) => filaMovimiento(m)).join("");
+  cont.querySelectorAll("[data-ver-doc]").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const m = movimientosCache.find((x) => String(x.id) === String(a.dataset.verDoc));
+      if (!m) return;
+      if (m.tipo === "cuota") abrirDocumento(BUCKET_RECIBOS, m.recibo_url, `Recibo — ${nombreDe(m.hermano_id)} (${fmtMes(m.periodo)})`);
+      else abrirDocumento(BUCKET_COMPROBANTES, m.comprobante_url, `Comprobante — Delegación (${fmtMes(m.periodo)})`);
+    });
+  });
+}
+
+$("lb-buscar").addEventListener("input", renderListadoMovimientos);
+$("lb-tipo").addEventListener("change", renderListadoMovimientos);
+$("lb-mes").addEventListener("change", renderListadoMovimientos);
+
+// ============================================================
+// MI CUENTA
+// ============================================================
+function renderCuenta() {
+  let estadoClase = "sinrevisar";
+  let estadoTexto = "Todavía sin revisar";
+  let nota = "El Tesorero todavía no cargó desde cuándo se te empieza a contar la deuda.";
+
+  if (miDeuda !== null && miDeuda !== undefined) {
+    const v = Number(miDeuda);
+    if (v > 0) { estadoClase = "debe"; estadoTexto = `Debés ${fmtMoneda(v)}`; nota = ""; }
+    else if (v < 0) { estadoClase = "aldia"; estadoTexto = `Tenés ${fmtMoneda(Math.abs(v))} a favor`; nota = ""; }
+    else { estadoClase = "aldia"; estadoTexto = "Estás al día"; nota = ""; }
+  }
+
+  $("cuenta-resumen").innerHTML = `
+    <div class="kicker">Mi cuenta</div>
+    <div class="estado-deuda ${estadoClase}">${estadoTexto}</div>
+    ${nota ? `<p class="muted" style="margin:4px 0 0;">${nota}</p>` : ""}
+  `;
+
+  const misMovs = movimientosCache
+    .filter((m) => m.hermano_id === miHermanoId)
+    .sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+
+  const lista = $("mc-lista");
+  if (misMovs.length === 0) {
+    lista.innerHTML = '<div class="empty-state">Todavía no tenés movimientos cargados.</div>';
+    return;
+  }
+
+  lista.innerHTML = misMovs.map((m) => filaMovimiento(m)).join("");
+  lista.querySelectorAll("[data-ver-doc]").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const m = misMovs.find((x) => String(x.id) === String(a.dataset.verDoc));
+      if (m) abrirDocumento(BUCKET_RECIBOS, m.recibo_url, `Recibo — ${fmtMes(m.periodo)}`);
+    });
+  });
+}
+
+// ============================================================
+// NUEVO MOVIMIENTO
+// ============================================================
+function poblarSelectsHermanos() {
+  const activos = [...hermanosCache]
+    .filter((h) => h.activo)
+    .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, "es"));
+  const opciones = activos.map((h) => `<option value="${h.id}">${esc(h.nombre_completo)}</option>`).join("");
+  $("c-hermano").innerHTML = opciones;
+  $("a-hermano").innerHTML = opciones;
+}
+
+document.querySelectorAll(".tipo-btn").forEach((b) => {
+  b.addEventListener("click", () => {
+    tipoActual = b.dataset.tipo;
+    document.querySelectorAll(".tipo-btn").forEach((x) => x.classList.toggle("activo", x === b));
+    document.querySelectorAll(".campos-tipo").forEach((x) => x.classList.remove("activo"));
+    $("campos-" + tipoActual).classList.add("activo");
+    $("form-error").textContent = "";
+  });
+});
+
+function setSigno(v) {
+  signoGeneralActual = v;
+  document.querySelectorAll("#g-signo button").forEach((b) => b.classList.toggle("activo", b.dataset.signo === v));
+}
+function setEfecto(v) {
+  efectoAjusteActual = v;
+  document.querySelectorAll("#a-efecto button").forEach((b) => b.classList.toggle("activo", b.dataset.efecto === v));
+}
+document.querySelectorAll("#g-signo button").forEach((b) => b.addEventListener("click", () => setSigno(b.dataset.signo)));
+document.querySelectorAll("#a-efecto button").forEach((b) => b.addEventListener("click", () => setEfecto(b.dataset.efecto)));
+
+$("d-periodo").addEventListener("change", actualizarSugeridoDelegacion);
+function actualizarSugeridoDelegacion() {
+  const periodoInput = $("d-periodo").value;
+  const hint = $("d-sugerido");
+  if (!periodoInput || !capitacionValoresCache.length) { hint.textContent = ""; return; }
+  const periodo = periodoInput + "-01";
+  const vigente = capitacionValoresCache.find((v) => v.vigente_desde <= periodo);
+  if (!vigente) { hint.textContent = ""; return; }
+  const activos = hermanosCache.filter((h) => h.activo).length;
+  const sugerido = Number(vigente.monto) * activos;
+  hint.textContent = `Sugerido: ${fmtMoneda(sugerido)} (${activos} HH∴ × ${fmtMoneda(vigente.monto)})`;
+}
+
+// Fechas de hoy por defecto en los 4 sub-formularios.
+["c-fecha", "g-fecha", "a-fecha", "d-fecha"].forEach((id) => { $(id).value = hoyISO(); });
+
+function limpiarSubformulario(tipo) {
+  if (tipo === "cuota") {
+    $("c-hermano").selectedIndex = 0;
+    $("c-periodo").value = "";
+    $("c-monto").value = "";
+    $("c-medio").value = "efectivo";
+    $("c-fecha").value = hoyISO();
+  } else if (tipo === "general") {
+    setSigno("ingreso");
+    $("g-categoria").value = "";
+    $("g-monto").value = "";
+    $("g-medio").value = "efectivo";
+    $("g-fecha").value = hoyISO();
+  } else if (tipo === "ajuste") {
+    $("a-hermano").selectedIndex = 0;
+    setEfecto("reduce");
+    $("a-monto").value = "";
+    $("a-fecha").value = hoyISO();
+    $("a-nota").value = "";
+  } else if (tipo === "delegacion") {
+    $("d-periodo").value = "";
+    $("d-medio").value = "transferencia";
+    $("d-monto").value = "";
+    $("d-fecha").value = hoyISO();
+    $("d-comprobante").value = "";
+    $("d-nota").value = "";
+    $("d-sugerido").textContent = "";
+  }
+}
+
+$("btn-cancelar-form").addEventListener("click", () => limpiarSubformulario(tipoActual));
+
+// ---- generación del recibo en PDF (cuota) ----
+function construirReciboHTML(mov, hermanoNombre, saldoTexto) {
+  const div = document.createElement("div");
+  div.className = "recibo";
+  // Igual que en Biblioteca de planchas: NO puede llevar position:fixed ni
+  // absolute — html2canvas necesita que quede en el flujo normal del
+  // documento para medir bien su alto, si no el PDF sale en blanco.
+  div.style.width = "180mm";
+  div.style.maxWidth = "100vw";
+  div.style.boxSizing = "border-box";
+  div.innerHTML = `
+    <div class="numero-recibo">Recibo N° ${String(mov.numero_recibo).padStart(6, "0")}</div>
+    <div class="simbolo">△</div>
+    <div class="titulo-recibo">Resp∴ Log∴</div>
+    <div class="nombre-logia">José Hernández N° 75</div>
+    <hr class="divisor">
+    <div class="fila"><span class="label-r">Recibí de</span><span>${esc(hermanoNombre)}</span></div>
+    <div class="fila"><span class="label-r">En concepto de</span><span>Cuota — ${fmtMes(mov.periodo)}</span></div>
+    <div class="fila"><span class="label-r">Medio de pago</span><span>${esc(capitaliza(mov.medio_pago))}</span></div>
+    <div class="fila"><span class="label-r">Fecha</span><span>${fmtFecha(mov.fecha)}</span></div>
+    <div class="monto-grande">${fmtMoneda(mov.monto)}</div>
+    <hr class="divisor">
+    <div class="fila"><span class="label-r">Saldo luego de este pago</span><span>${esc(saldoTexto)}</span></div>
+    <div class="firma">
+      <div class="linea"></div>
+      <div class="nombre-firma">${esc(miNombre)}</div>
+      <div class="cargo-firma">${esc(cargoEmisorNombre)}</div>
+    </div>
+  `;
+  return div;
+}
+
+// A diferencia de una plancha, un recibo tiene largo fijo y chico: siempre
+// entra en una sola hoja A4, así que no hace falta el algoritmo de "corte
+// seguro" que sí usa redactar.html para documentos largos.
+async function generarPdfDesdeElemento(elemento) {
+  document.body.appendChild(elemento);
+  await document.fonts.ready;
+  // setTimeout (nunca requestAnimationFrame) para que funcione igual si la
+  // pestaña está de fondo — ver comentario largo en redactar.html.
+  await new Promise((r) => setTimeout(r, 60));
+  let canvas;
+  try {
+    canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: "#fdfaf2" });
+  } finally {
+    elemento.remove();
+  }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const marginLeft = 15, marginTop = 15;
+  const pageW = pdf.internal.pageSize.getWidth();
+  const usableW = pageW - marginLeft * 2;
+  const pxPerMm = canvas.width / usableW;
+  const imgHmm = canvas.height / pxPerMm;
+
+  pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", marginLeft, marginTop, usableW, imgHmm);
+  return pdf.output("blob");
+}
+
+function textoSaldo(deuda) {
+  if (deuda === null || deuda === undefined) return "Sin revisar";
+  const v = Number(deuda);
+  if (v > 0) return `Debe ${fmtMoneda(v)}`;
+  if (v < 0) return `A favor ${fmtMoneda(Math.abs(v))}`;
+  return "Al día";
+}
+
+// ---- guardado por tipo ----
+async function guardarCuota() {
+  const hermanoId = $("c-hermano").value;
+  const periodoInput = $("c-periodo").value;
+  const monto = Number($("c-monto").value);
+  const medio = $("c-medio").value;
+  const fecha = $("c-fecha").value || hoyISO();
+
+  if (!hermanoId) throw new Error("Elegí el hermano.");
+  if (!periodoInput) throw new Error("Elegí el período.");
+  if (!(monto > 0)) throw new Error("El monto tiene que ser mayor a cero.");
+
+  const periodo = periodoInput + "-01";
+
+  const { data: mov, error } = await db.from("tesoreria_movimientos").insert({
+    tipo: "cuota", hermano_id: hermanoId, monto, periodo, fecha, medio_pago: medio,
+    registrado_por: miHermanoId,
+  }).select().single();
+  if (error) throw error;
+
+  // El recibo se genera aparte: si falla, la cuota ya quedó registrada
+  // (no se pierde el pago por un problema al generar el PDF).
+  try {
+    const hermanoNombre = nombreDe(hermanoId);
+    const { data: deudaNueva } = await db.rpc("calcular_deuda_hermano", { p_hermano_id: hermanoId });
+    const div = construirReciboHTML(mov, hermanoNombre, textoSaldo(deudaNueva));
+    const blob = await generarPdfDesdeElemento(div);
+    const path = `${mov.id}/recibo.pdf`;
+    const { error: errSubida } = await db.storage.from(BUCKET_RECIBOS)
+      .upload(path, blob, { contentType: "application/pdf", upsert: true });
+    if (errSubida) throw errSubida;
+    const { error: errUpdate } = await db.from("tesoreria_movimientos").update({ recibo_url: path }).eq("id", mov.id);
+    if (errUpdate) throw errUpdate;
+  } catch (errPdf) {
+    console.error(errPdf);
+    toast("La cuota se guardó, pero no se pudo generar el recibo en PDF.", true);
+  }
+}
+
+async function guardarGeneral() {
+  const categoria = $("g-categoria").value.trim();
+  const monto = Number($("g-monto").value);
+  const medio = $("g-medio").value;
+  const fecha = $("g-fecha").value || hoyISO();
+
+  if (!categoria) throw new Error("Escribí una categoría.");
+  if (!(monto > 0)) throw new Error("El monto tiene que ser mayor a cero.");
+
+  const { error } = await db.from("tesoreria_movimientos").insert({
+    tipo: "general", signo: signoGeneralActual, monto, medio_pago: medio, fecha, descripcion: categoria,
+    registrado_por: miHermanoId,
+  });
+  if (error) throw error;
+}
+
+async function guardarAjuste() {
+  const hermanoId = $("a-hermano").value;
+  const montoAbs = Number($("a-monto").value);
+  const fecha = $("a-fecha").value || hoyISO();
+  const nota = $("a-nota").value.trim();
+
+  if (!hermanoId) throw new Error("Elegí el hermano.");
+  if (!(montoAbs > 0)) throw new Error("El monto tiene que ser mayor a cero.");
+  if (!nota) throw new Error("La nota es obligatoria para un ajuste manual.");
+
+  const monto = efectoAjusteActual === "reduce" ? montoAbs : -montoAbs;
+
+  const { error } = await db.from("tesoreria_movimientos").insert({
+    tipo: "ajuste", hermano_id: hermanoId, monto, fecha, descripcion: nota,
+    registrado_por: miHermanoId,
+  });
+  if (error) throw error;
+}
+
+async function guardarDelegacion() {
+  const periodoInput = $("d-periodo").value;
+  const medio = $("d-medio").value;
+  const monto = Number($("d-monto").value);
+  const fecha = $("d-fecha").value || hoyISO();
+  const nota = $("d-nota").value.trim() || null;
+  const archivo = $("d-comprobante").files[0] || null;
+
+  if (!periodoInput) throw new Error("Elegí el período.");
+  if (!(monto > 0)) throw new Error("El monto tiene que ser mayor a cero.");
+  if (!archivo) throw new Error("Subí el comprobante — es obligatorio.");
+
+  const periodo = periodoInput + "-01";
+  const ext = (archivo.name.split(".").pop() || "bin").toLowerCase();
+  const path = `${periodoInput}/${Date.now()}.${ext}`;
+
+  // El comprobante se sube ANTES de insertar el movimiento (mismo criterio
+  // que Boletines): comprobante_url es obligatorio en la fila, así que el
+  // archivo ya tiene que existir con esa ruta antes del insert.
+  const { error: errSubida } = await db.storage.from(BUCKET_COMPROBANTES)
+    .upload(path, archivo, { contentType: archivo.type || undefined });
+  if (errSubida) throw errSubida;
+
+  const { error } = await db.from("tesoreria_movimientos").insert({
+    tipo: "delegacion", monto, periodo, fecha, medio_pago: medio,
+    descripcion: nota, comprobante_url: path, registrado_por: miHermanoId,
+  });
+  if (error) {
+    db.storage.from(BUCKET_COMPROBANTES).remove([path]).catch(() => {});
+    throw error;
+  }
+}
+
+$("form-movimiento").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("form-error").textContent = "";
+  const btn = $("btn-guardar-mov");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  try {
+    if (tipoActual === "cuota") await guardarCuota();
+    else if (tipoActual === "general") await guardarGeneral();
+    else if (tipoActual === "ajuste") await guardarAjuste();
+    else if (tipoActual === "delegacion") await guardarDelegacion();
+
+    toast("Movimiento guardado.");
+    limpiarSubformulario(tipoActual);
+    await recargarMovimientos();
+    // Recalcula "mi_deuda" por si el movimiento afecta al propio usuario
+    // (poco común para quien carga, pero posible: un Secretario que también
+    // paga su propia cuota).
+    const { data: nuevaMiDeuda } = await db.rpc("mi_deuda");
+    miDeuda = nuevaMiDeuda ?? null;
+    renderLibro();
+    renderCuenta();
+  } catch (err) {
+    console.error(err);
+    $("form-error").textContent = err.message || "No se pudo guardar el movimiento.";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Guardar";
+  }
+});
+
+// ============================================================
+// GRILLA ANUAL
+// ============================================================
+async function cargarGrilla() {
+  const activos = hermanosCache.filter((h) => h.activo);
+  poblarSelectAnios();
+  grillaAnioActual = Number($("gr-anio").value) || new Date().getFullYear();
+
+  const respuestas = await Promise.all(
+    activos.map((h) => db.rpc("calcular_deuda_hermano", { p_hermano_id: h.id }))
+  );
+  deudaPorHermano = new Map();
+  activos.forEach((h, i) => deudaPorHermano.set(h.id, respuestas[i]?.data ?? null));
+
+  renderGrilla();
+}
+
+function poblarSelectAnios() {
+  if ($("gr-anio").options.length) return; // ya poblado — no perder la selección del usuario
+  const anioActual = new Date().getFullYear();
+  let anioMin = anioActual;
+  tesoreriaHermanosCache.forEach((t) => {
+    if (t.adeuda_desde) {
+      const y = Number(t.adeuda_desde.slice(0, 4));
+      if (y < anioMin) anioMin = y;
+    }
+  });
+  const anios = [];
+  for (let a = anioActual; a >= anioMin; a--) anios.push(a);
+  $("gr-anio").innerHTML = anios.map((a) => `<option value="${a}">${a}</option>`).join("");
+}
+
+$("gr-anio").addEventListener("change", renderGrilla);
+
+function renderGrilla() {
+  grillaAnioActual = Number($("gr-anio").value) || new Date().getFullYear();
+  renderGrillaCuotas();
+  renderGrillaDelegacion();
+}
+
+function claseCeldaCuota(hermanoId, adeudaDesde, anio, mes) {
+  const mesDate = `${anio}-${String(mes).padStart(2, "0")}-01`;
+  const hoyMes = hoyISO().slice(0, 7) + "-01";
+  if (!adeudaDesde) return "i-sinrevisar";
+  if (mesDate > hoyMes) return "i-noaplica";
+  const desdeMes = adeudaDesde.slice(0, 7) + "-01";
+  if (mesDate < desdeMes) return "i-noaplica";
+  const pagado = movimientosCache.some((m) => m.tipo === "cuota" && m.hermano_id === hermanoId && m.periodo === mesDate);
+  return pagado ? "i-pagado" : "i-debe";
+}
+
+function renderGrillaCuotas() {
+  const activos = hermanosCache.filter((h) => h.activo);
+  const tesHermanoMap = new Map(tesoreriaHermanosCache.map((t) => [t.hermano_id, t.adeuda_desde]));
+
+  const filas = activos.map((h) => ({
+    hermano: h,
+    adeudaDesde: tesHermanoMap.get(h.id) || null,
+    deuda: deudaPorHermano.get(h.id) ?? null,
+  })).sort((a, b) => {
+    if (a.deuda === null && b.deuda === null) return a.hermano.nombre_completo.localeCompare(b.hermano.nombre_completo, "es");
+    if (a.deuda === null) return 1;
+    if (b.deuda === null) return -1;
+    return Number(b.deuda) - Number(a.deuda);
+  });
+
+  let deudaTotal = 0;
+  filas.forEach((f) => { if (f.deuda !== null && Number(f.deuda) > 0) deudaTotal += Number(f.deuda); });
+  $("gr-deuda-total").textContent = fmtMoneda(deudaTotal);
+
+  const encabezado = `<tr><th class="nombre-hermano">Hermano</th>${MES_ABREV.map((m) => `<th>${m}</th>`).join("")}<th class="debe-total">Debe total</th></tr>`;
+
+  const filasHtml = filas.map((f) => {
+    const celdas = MES_ABREV.map((_, i) => {
+      const clase = claseCeldaCuota(f.hermano.id, f.adeudaDesde, grillaAnioActual, i + 1);
+      return `<td><span class="celda ${clase}"></span></td>`;
+    }).join("");
+
+    let deudaTexto, deudaClase;
+    if (f.deuda === null) {
+      deudaTexto = "Sin revisar"; deudaClase = "sinrevisar";
+    } else if (Number(f.deuda) > 0) {
+      deudaTexto = fmtMoneda(f.deuda); deudaClase = "debe";
+    } else if (Number(f.deuda) === 0) {
+      deudaTexto = "Al día"; deudaClase = "aldia";
+    } else {
+      deudaTexto = `A favor ${fmtMoneda(Math.abs(f.deuda))}`; deudaClase = "aldia";
+    }
+
+    return `<tr><td class="nombre-hermano">${esc(f.hermano.nombre_completo)}</td>${celdas}<td class="debe-total ${deudaClase}">${deudaTexto}</td></tr>`;
+  }).join("");
+
+  $("gr-tabla-cuotas").innerHTML = encabezado + filasHtml;
+}
+
+function renderGrillaDelegacion() {
+  const hoyMes = hoyISO().slice(0, 7) + "-01";
+  const encabezado = `<tr><th class="nombre-hermano">&nbsp;</th>${MES_ABREV.map((m) => `<th>${m}</th>`).join("")}</tr>`;
+  const celdas = MES_ABREV.map((_, i) => {
+    const mesDate = `${grillaAnioActual}-${String(i + 1).padStart(2, "0")}-01`;
+    let clase;
+    if (mesDate > hoyMes) {
+      clase = "i-noaplica";
+    } else {
+      const pagado = movimientosCache.some((m) => m.tipo === "delegacion" && m.periodo === mesDate);
+      clase = pagado ? "i-pagado" : "i-debe";
+    }
+    return `<td><span class="celda ${clase}"></span></td>`;
+  }).join("");
+  $("gr-tabla-delegacion").innerHTML = `${encabezado}<tr><td class="nombre-hermano">Delegación</td>${celdas}</tr>`;
+}
+
+// ============================================================
+// VISOR DE RECIBOS / COMPROBANTES (PDF con PDF.js, o imagen)
+// ============================================================
+function mostrarEstadoDoc(texto, esImagen) {
+  const estado = $("pdf-estado");
+  if (texto) {
+    estado.textContent = texto;
+    estado.classList.add("visible");
+    $("pdf-canvas").style.display = "none";
+    $("pdf-imagen").style.display = "none";
+  } else {
+    estado.classList.remove("visible");
+    $("pdf-canvas").style.display = esImagen ? "none" : "block";
+    $("pdf-imagen").style.display = esImagen ? "block" : "none";
+  }
+}
+
+function actualizarControlesPagina() {
+  $("modal-pdf-pagina").textContent = totalPaginasPdf ? `${paginaPdfActual} / ${totalPaginasPdf}` : "";
+  $("btn-pagina-ant").disabled = paginaPdfActual <= 1;
+  $("btn-pagina-sig").disabled = paginaPdfActual >= totalPaginasPdf;
+}
+
+async function renderPaginaPdf(numeroPagina) {
+  if (!pdfDocActual) return;
+  if (renderEnCurso) { renderPendiente = numeroPagina; return; }
+  renderEnCurso = true;
+
+  try {
+    const pagina = await pdfDocActual.getPage(numeroPagina);
+    const contenedor = $("modal-pdf-body");
+    const anchoDisponible = Math.max(contenedor.clientWidth - 32, 240);
+    const viewportBase = pagina.getViewport({ scale: 1 });
+    const escala = anchoDisponible / viewportBase.width;
+    const dpr = window.devicePixelRatio || 1;
+    const viewport = pagina.getViewport({ scale: escala * dpr });
+
+    const canvas = $("pdf-canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    canvas.style.width = (viewport.width / dpr) + "px";
+    canvas.style.height = (viewport.height / dpr) + "px";
+
+    await pagina.render({ canvasContext: ctx, viewport }).promise;
+
+    paginaPdfActual = numeroPagina;
+    mostrarEstadoDoc(null, false);
+    actualizarControlesPagina();
+  } catch (err) {
+    console.error(err);
+    mostrarEstadoDoc('No se pudo mostrar esta página. Probá con "Abrir en pestaña nueva".', false);
+  } finally {
+    renderEnCurso = false;
+    if (renderPendiente !== null) {
+      const siguiente = renderPendiente;
+      renderPendiente = null;
+      renderPaginaPdf(siguiente);
+    }
+  }
+}
+
+async function abrirDocumento(bucket, path, titulo) {
+  if (!path) { toast("Todavía no hay archivo para mostrar.", true); return; }
+
+  const { data, error } = await db.storage.from(bucket).createSignedUrl(path, 600);
+  if (error || !data) { toast("No se pudo generar el link para ver el archivo.", true); console.error(error); return; }
+
+  $("modal-pdf-titulo").textContent = titulo;
+  $("link-abrir-pestana").href = data.signedUrl;
+  $("modal-pdf").classList.add("abierto");
+
+  const esPdf = /\.pdf$/i.test(path);
+  $("btn-pagina-ant").style.display = esPdf ? "" : "none";
+  $("btn-pagina-sig").style.display = esPdf ? "" : "none";
+
+  if (esPdf) {
+    $("modal-pdf-pagina").textContent = "";
+    mostrarEstadoDoc("Cargando…", false);
+    try {
+      pdfDocActual = await pdfjsLib.getDocument({ url: data.signedUrl }).promise;
+      totalPaginasPdf = pdfDocActual.numPages;
+      paginaPdfActual = 1;
+      await renderPaginaPdf(1);
+    } catch (err) {
+      console.error(err);
+      mostrarEstadoDoc('No se pudo mostrar la vista previa acá. Probá con "Abrir en pestaña nueva".', false);
+    }
+  } else {
+    mostrarEstadoDoc("Cargando…", true);
+    const img = $("pdf-imagen");
+    img.onload = () => mostrarEstadoDoc(null, true);
+    img.onerror = () => mostrarEstadoDoc('No se pudo mostrar la vista previa. Probá con "Abrir en pestaña nueva".', true);
+    img.src = data.signedUrl;
+  }
+}
+
+function cerrarVisor() {
+  $("modal-pdf").classList.remove("abierto");
+  if (pdfDocActual) {
+    pdfDocActual.destroy();
+    pdfDocActual = null;
+  }
+  totalPaginasPdf = 0;
+  paginaPdfActual = 1;
+  renderPendiente = null;
+  const canvas = $("pdf-canvas");
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+  $("pdf-imagen").src = "";
+}
+
+$("btn-cerrar-visor").addEventListener("click", cerrarVisor);
+$("btn-pagina-ant").addEventListener("click", () => {
+  if (paginaPdfActual > 1) renderPaginaPdf(paginaPdfActual - 1);
+});
+$("btn-pagina-sig").addEventListener("click", () => {
+  if (paginaPdfActual < totalPaginasPdf) renderPaginaPdf(paginaPdfActual + 1);
+});
+$("modal-pdf").addEventListener("click", (e) => {
+  if (e.target.id === "modal-pdf") cerrarVisor();
+});
+document.addEventListener("keydown", (e) => {
+  if (!$("modal-pdf").classList.contains("abierto")) return;
+  if (e.key === "Escape") cerrarVisor();
+  if (e.key === "ArrowLeft" && paginaPdfActual > 1) renderPaginaPdf(paginaPdfActual - 1);
+  if (e.key === "ArrowRight" && paginaPdfActual < totalPaginasPdf) renderPaginaPdf(paginaPdfActual + 1);
+});
+
+</script>
+</body>
+</html>
