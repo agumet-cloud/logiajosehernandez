@@ -175,6 +175,11 @@
   table.grilla td.debe-total.debe { color:var(--danger); }
   table.grilla td.debe-total.aldia { color:var(--ok, #7fbf94); }
   table.grilla td.debe-total.sinrevisar { color:var(--muted); font-weight:300; }
+  table.grilla td.debe-total.clicable { cursor:pointer; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:3px; }
+  table.grilla td.debe-total.clicable:hover { color:var(--gold-soft); }
+
+  .modal-chico { background:var(--green-1); border:1px solid var(--line); border-radius:10px; max-width:420px; width:100%; padding:22px; }
+  .modal-chico h3 { margin-top:0; }
 
   /* ---- visor de PDF (recibos / comprobantes) ---- */
   .modal-overlay {
@@ -519,9 +524,31 @@
           <table class="grilla" id="gr-tabla-delegacion"></table>
         </div>
       </div>
-      <p class="nota-demo">"Debe total" usa el mismo cálculo que "Mi cuenta" para cada hermano. La fila de Delegación se pone en rojo apenas pasa un mes sin un pago cargado.</p>
+      <p class="nota-demo">"Debe total" usa el mismo cálculo que "Mi cuenta" para cada hermano — hacé clic en el monto (o en "Sin revisar") para cargar o corregir desde cuándo se le cuenta la deuda. La fila de Delegación se pone en rojo apenas pasa un mes sin un pago cargado.</p>
     </div>
 
+  </div>
+</div>
+
+<!-- ===================== AJUSTAR "ADEUDA DESDE" (Grilla anual) ===================== -->
+<div class="modal-overlay" id="modal-adeuda">
+  <div class="modal-chico">
+    <h3>Desde cuándo se le cuenta la deuda</h3>
+    <p class="muted" id="modal-adeuda-nombre" style="margin-top:-8px;"></p>
+    <div class="campo">
+      <label for="modal-adeuda-mes">Adeuda desde (mes)</label>
+      <input id="modal-adeuda-mes" type="month">
+    </div>
+    <p class="muted" style="font-size:.78rem; margin-top:-10px;">
+      Si ya cargaste toda la deuda vieja de este H∴ como un Ajuste único (monto fijo, sin mes a mes),
+      poné acá el mes SIGUIENTE al que cubre ese ajuste — así la cuota mensual automática no se suma
+      dos veces sobre el mismo período.
+    </p>
+    <span class="error-msg" id="modal-adeuda-error"></span>
+    <div class="botones">
+      <button class="ghost" type="button" id="btn-cancelar-adeuda">Cancelar</button>
+      <button class="primary" type="button" id="btn-guardar-adeuda" style="width:auto;">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -885,6 +912,16 @@ function renderLibro() {
   renderListadoMovimientos();
 }
 
+// El botón "Borrar" solo se dibuja si puedeCargar — coincide exactamente
+// con la política RLS de borrado de tesoreria_movimientos (puede_cargar_
+// tesoreria()), que no depende de ser el dueño de la fila. Se muestra igual
+// en "Mi cuenta" que en "Libro completo": si el Tesorero mira su propia
+// cuota ahí, también tiene que poder borrarla si se equivocó.
+function botonBorrarMov(id) {
+  if (!puedeCargar) return "";
+  return `<button type="button" class="ghost btn-borrar-mov" data-id="${id}" style="color:var(--danger); border-color:var(--danger);">Borrar</button>`;
+}
+
 function filaMovimiento(m) {
   if (m.tipo === "cuota") {
     return `
@@ -896,7 +933,10 @@ function filaMovimiento(m) {
             ${m.recibo_url ? ` · <a href="#" data-ver-doc="${m.id}">Ver recibo</a>` : " · Generando recibo…"}
           </div>
         </div>
-        <div class="mov-monto pos">+ ${fmtMoneda(m.monto)}</div>
+        <div class="mov-acciones" style="flex-direction:column; align-items:flex-end;">
+          <div class="mov-monto pos">+ ${fmtMoneda(m.monto)}</div>
+          ${botonBorrarMov(m.id)}
+        </div>
       </div>`;
   }
   if (m.tipo === "general") {
@@ -907,7 +947,10 @@ function filaMovimiento(m) {
           <div class="mov-titulo"><span>${esc(m.descripcion || "—")}</span><span class="pill general">General</span></div>
           <div class="mov-sub">Medio: ${esc(capitaliza(m.medio_pago))} · ${fmtFecha(m.fecha)} · Cargado por ${esc(nombreDe(m.registrado_por))}</div>
         </div>
-        <div class="mov-monto ${esIngreso ? "pos" : "neg"}">${esIngreso ? "+" : "−"} ${fmtMoneda(m.monto)}</div>
+        <div class="mov-acciones" style="flex-direction:column; align-items:flex-end;">
+          <div class="mov-monto ${esIngreso ? "pos" : "neg"}">${esIngreso ? "+" : "−"} ${fmtMoneda(m.monto)}</div>
+          ${botonBorrarMov(m.id)}
+        </div>
       </div>`;
   }
   if (m.tipo === "ajuste") {
@@ -918,7 +961,10 @@ function filaMovimiento(m) {
           <div class="mov-titulo"><span>Ajuste — ${esc(nombreDe(m.hermano_id))}</span><span class="pill ajuste">Ajuste</span></div>
           <div class="mov-sub">${esc(m.descripcion || "")} · ${fmtFecha(m.fecha)} · Cargado por ${esc(nombreDe(m.registrado_por))}</div>
         </div>
-        <div class="mov-monto ${reduce ? "pos" : "neg"}">${reduce ? "Reduce" : "Aumenta"} ${fmtMoneda(Math.abs(m.monto))}</div>
+        <div class="mov-acciones" style="flex-direction:column; align-items:flex-end;">
+          <div class="mov-monto ${reduce ? "pos" : "neg"}">${reduce ? "Reduce" : "Aumenta"} ${fmtMoneda(Math.abs(m.monto))}</div>
+          ${botonBorrarMov(m.id)}
+        </div>
       </div>`;
   }
   // delegacion
@@ -932,8 +978,56 @@ function filaMovimiento(m) {
           ${m.descripcion ? `<br>${esc(m.descripcion)}` : ""}
         </div>
       </div>
-      <div class="mov-monto neg">− ${fmtMoneda(m.monto)}</div>
+      <div class="mov-acciones" style="flex-direction:column; align-items:flex-end;">
+        <div class="mov-monto neg">− ${fmtMoneda(m.monto)}</div>
+        ${botonBorrarMov(m.id)}
+      </div>
     </div>`;
+}
+
+// Cablea "Ver recibo/comprobante" y "Borrar" en cualquier listado de
+// movimientos ya insertado en el DOM (se usa tanto en Libro completo como
+// en Mi cuenta — ambos renderizan filas con filaMovimiento()).
+function wirearAccionesMovimiento(cont) {
+  cont.querySelectorAll("[data-ver-doc]").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const m = movimientosCache.find((x) => String(x.id) === String(a.dataset.verDoc));
+      if (!m) return;
+      if (m.tipo === "cuota") abrirDocumento(BUCKET_RECIBOS, m.recibo_url, `Recibo — ${nombreDe(m.hermano_id)} (${fmtMes(m.periodo)})`);
+      else abrirDocumento(BUCKET_COMPROBANTES, m.comprobante_url, `Comprobante — Delegación (${fmtMes(m.periodo)})`);
+    });
+  });
+  cont.querySelectorAll(".btn-borrar-mov").forEach((btn) => {
+    btn.addEventListener("click", () => borrarMovimiento(btn.dataset.id));
+  });
+}
+
+async function borrarMovimiento(id) {
+  const m = movimientosCache.find((x) => String(x.id) === String(id));
+  if (!m) return;
+
+  const detalle = m.tipo === "cuota" ? `la cuota de ${nombreDe(m.hermano_id)} (${fmtMes(m.periodo)})`
+    : m.tipo === "general" ? `el movimiento "${m.descripcion || "—"}"`
+    : m.tipo === "ajuste" ? `el ajuste de ${nombreDe(m.hermano_id)} (${fmtMoneda(Math.abs(m.monto))})`
+    : `el pago a la delegación (${fmtMes(m.periodo)})`;
+
+  if (!confirm(`¿Borrar ${detalle}? No se puede deshacer.`)) return;
+
+  const { error } = await db.from("tesoreria_movimientos").delete().eq("id", m.id);
+  if (error) { toast("No se pudo borrar.", true); console.error(error); return; }
+
+  // El archivo asociado (si tenía) queda huérfano en Storage si no se limpia
+  // acá — mismo criterio que Boletines.
+  if (m.recibo_url) db.storage.from(BUCKET_RECIBOS).remove([m.recibo_url]).catch(() => {});
+  if (m.comprobante_url) db.storage.from(BUCKET_COMPROBANTES).remove([m.comprobante_url]).catch(() => {});
+
+  toast("Movimiento borrado.");
+  await recargarMovimientos();
+  const { data: nuevaMiDeuda } = await db.rpc("mi_deuda");
+  miDeuda = nuevaMiDeuda ?? null;
+  renderLibro();
+  renderCuenta();
 }
 
 function renderListadoMovimientos() {
@@ -964,15 +1058,7 @@ function renderListadoMovimientos() {
   }
 
   cont.innerHTML = filtrados.map((m) => filaMovimiento(m)).join("");
-  cont.querySelectorAll("[data-ver-doc]").forEach((a) => {
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      const m = movimientosCache.find((x) => String(x.id) === String(a.dataset.verDoc));
-      if (!m) return;
-      if (m.tipo === "cuota") abrirDocumento(BUCKET_RECIBOS, m.recibo_url, `Recibo — ${nombreDe(m.hermano_id)} (${fmtMes(m.periodo)})`);
-      else abrirDocumento(BUCKET_COMPROBANTES, m.comprobante_url, `Comprobante — Delegación (${fmtMes(m.periodo)})`);
-    });
-  });
+  wirearAccionesMovimiento(cont);
 }
 
 $("lb-buscar").addEventListener("input", renderListadoMovimientos);
@@ -1011,13 +1097,7 @@ function renderCuenta() {
   }
 
   lista.innerHTML = misMovs.map((m) => filaMovimiento(m)).join("");
-  lista.querySelectorAll("[data-ver-doc]").forEach((a) => {
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      const m = misMovs.find((x) => String(x.id) === String(a.dataset.verDoc));
-      if (m) abrirDocumento(BUCKET_RECIBOS, m.recibo_url, `Recibo — ${fmtMes(m.periodo)}`);
-    });
-  });
+  wirearAccionesMovimiento(lista);
 }
 
 // ============================================================
@@ -1397,10 +1477,18 @@ function renderGrillaCuotas() {
       deudaTexto = `A favor ${fmtMoneda(Math.abs(f.deuda))}`; deudaClase = "aldia";
     }
 
-    return `<tr><td class="nombre-hermano">${esc(f.hermano.nombre_completo)}</td>${celdas}<td class="debe-total ${deudaClase}">${deudaTexto}</td></tr>`;
+    const clicable = puedeCargar ? "clicable" : "";
+    const dataAttr = puedeCargar ? ` data-hermano="${f.hermano.id}"` : "";
+    return `<tr><td class="nombre-hermano">${esc(f.hermano.nombre_completo)}</td>${celdas}<td class="debe-total ${deudaClase} ${clicable}"${dataAttr}>${deudaTexto}</td></tr>`;
   }).join("");
 
   $("gr-tabla-cuotas").innerHTML = encabezado + filasHtml;
+
+  if (puedeCargar) {
+    $("gr-tabla-cuotas").querySelectorAll("td.debe-total.clicable").forEach((td) => {
+      td.addEventListener("click", () => abrirModalAdeuda(td.dataset.hermano));
+    });
+  }
 }
 
 function renderGrillaDelegacion() {
@@ -1419,6 +1507,72 @@ function renderGrillaDelegacion() {
   }).join("");
   $("gr-tabla-delegacion").innerHTML = `${encabezado}<tr><td class="nombre-hermano">Delegación</td>${celdas}</tr>`;
 }
+
+// ============================================================
+// AJUSTAR "ADEUDA DESDE" — desde la Grilla anual
+// ============================================================
+// tesoreria_hermanos no tenía ninguna pantalla para cargar/corregir
+// adeuda_desde: sin esto, un Ajuste manual no alcanza para que calcular_
+// deuda_hermano() devuelva un número (sigue devolviendo NULL — "sin
+// revisar" — mientras no exista esta fila). Se edita desde acá, con clic
+// en la columna "Debe total" de la Grilla.
+let adeudaEditandoHermanoId = null;
+
+async function recargarTesoreriaHermanos() {
+  const { data, error } = await db.from("tesoreria_hermanos").select("*");
+  if (error) { console.error(error); return; }
+  tesoreriaHermanosCache = data || [];
+}
+
+function abrirModalAdeuda(hermanoId) {
+  adeudaEditandoHermanoId = hermanoId;
+  $("modal-adeuda-nombre").textContent = nombreDe(hermanoId);
+  $("modal-adeuda-error").textContent = "";
+  const actual = tesoreriaHermanosCache.find((t) => t.hermano_id === hermanoId);
+  $("modal-adeuda-mes").value = actual?.adeuda_desde ? actual.adeuda_desde.slice(0, 7) : "";
+  $("modal-adeuda").classList.add("abierto");
+}
+
+function cerrarModalAdeuda() {
+  $("modal-adeuda").classList.remove("abierto");
+  adeudaEditandoHermanoId = null;
+}
+
+$("btn-cancelar-adeuda").addEventListener("click", cerrarModalAdeuda);
+$("modal-adeuda").addEventListener("click", (e) => {
+  if (e.target.id === "modal-adeuda") cerrarModalAdeuda();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("modal-adeuda").classList.contains("abierto")) cerrarModalAdeuda();
+});
+
+$("btn-guardar-adeuda").addEventListener("click", async () => {
+  $("modal-adeuda-error").textContent = "";
+  const mes = $("modal-adeuda-mes").value;
+  if (!mes) { $("modal-adeuda-error").textContent = "Elegí un mes."; return; }
+  if (!adeudaEditandoHermanoId) return;
+
+  const adeuda_desde = mes + "-01";
+  const btn = $("btn-guardar-adeuda");
+  btn.disabled = true;
+  try {
+    const { error } = await db.from("tesoreria_hermanos").upsert(
+      { hermano_id: adeudaEditandoHermanoId, adeuda_desde, actualizado_por: miHermanoId },
+      { onConflict: "hermano_id" }
+    );
+    if (error) throw error;
+
+    toast("Guardado.");
+    cerrarModalAdeuda();
+    await recargarTesoreriaHermanos();
+    await cargarGrilla();
+  } catch (err) {
+    console.error(err);
+    $("modal-adeuda-error").textContent = "No se pudo guardar. Probá de nuevo.";
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 // ============================================================
 // VISOR DE RECIBOS / COMPROBANTES (PDF con PDF.js, o imagen)
