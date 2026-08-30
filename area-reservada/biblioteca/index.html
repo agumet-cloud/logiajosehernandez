@@ -102,6 +102,25 @@
   }
   .modal-pdf-estado.visible { display:flex; }
 
+  /* ---- Modo lectura (ebook), para leer cómodo desde el celular/tablet ---- */
+  .modal-pdf-ebook {
+    display:none; width:100%; max-width:640px; margin:0 auto; box-sizing:border-box;
+    background:#faf6ec; color:#1e1b12; padding:8px 26px 70px;
+    font-family:'Cormorant Garamond', Georgia, serif;
+    font-size:1.18rem; line-height:1.75;
+  }
+  .modal-pdf-ebook.visible { display:block; }
+  .modal-pdf-ebook b, .modal-pdf-ebook strong { font-weight:700; }
+  .modal-pdf-ebook .ebook-encabezado {
+    text-align:center; padding:30px 10px 26px; border-bottom:1px solid rgba(30,27,18,.18); margin-bottom:26px;
+  }
+  .modal-pdf-ebook .simbolo { font-size:1.2rem; letter-spacing:.35em; margin-bottom:10px; color:#8a7130; }
+  .modal-pdf-ebook .formula { letter-spacing:.03em; margin:2px 0; font-size:.92rem; }
+  .modal-pdf-ebook .divisor { width:56px; height:1px; background:#8a7130; opacity:.55; margin:14px auto; }
+  .modal-pdf-ebook .titulo-plancha { font-size:1.35rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:4px; }
+  .modal-pdf-ebook .titulo-obra { font-style:italic; font-size:1.1rem; margin-bottom:8px; }
+  .modal-pdf-ebook .autor { font-size:.92rem; color:#4a4433; }
+
   .modal-chica-card {
     background:var(--green-1); border:1px solid var(--line); border-radius:10px;
     width:100%; max-width:340px; padding:22px;
@@ -216,12 +235,14 @@
         <button type="button" class="ghost" id="btn-pagina-ant" title="Página anterior">‹</button>
         <span class="modal-pdf-pagina" id="modal-pdf-pagina"></span>
         <button type="button" class="ghost" id="btn-pagina-sig" title="Página siguiente">›</button>
+        <button type="button" class="ghost" id="btn-modo-ebook" title="Ver en formato lectura (celular)" style="display:none;">📱</button>
         <a href="#" target="_blank" rel="noopener" id="link-abrir-pestana">Abrir en pestaña nueva</a>
         <button type="button" class="ghost" id="btn-cerrar-visor">Cerrar ✕</button>
       </div>
     </div>
     <div class="modal-pdf-body" id="modal-pdf-body">
       <canvas id="pdf-canvas" style="display:none;"></canvas>
+      <div class="modal-pdf-ebook" id="modal-pdf-ebook"></div>
       <div class="modal-pdf-estado" id="pdf-estado">Cargando…</div>
     </div>
   </div>
@@ -265,6 +286,7 @@ let hermanosData = [];      // [{id, nombre_completo, activo}]
 let planchasCache = [];     // todas las visibles por RLS (leídas + borradores propios/todos)
 let editandoEscaneadaId = null;
 let targetMarcarLeida = null;
+let cfgLugar = "";
 
 // ---- estado del visor de PDF ----
 let pdfDocActual = null;
@@ -272,6 +294,8 @@ let paginaPdfActual = 1;
 let totalPaginasPdf = 0;
 let renderEnCurso = false;
 let renderPendiente = null;
+let planchaEnVisor = null;
+let modoEbookActivo = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -310,6 +334,32 @@ function fmtFechaCorta(iso) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
+function fmtFecha(iso) {
+  if (!iso) return "";
+  const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} de ${meses[m - 1]} de ${y}`;
+}
+// Mismo encabezado ritual que arma redactar.html, pero para mostrar acá
+// en el visor — usa fecha_lectura (la oficial) en vez de fecha_prevista,
+// porque en la Biblioteca la plancha ya fue leída en tenida.
+function construirEncabezadoEbook(p) {
+  const gd = gradosData.find((g) => g.id === p.grado_id);
+  const fechaTxt = p.fecha_lectura ? fmtFecha(p.fecha_lectura) : (p.fecha_prevista ? fmtFecha(p.fecha_prevista) : "(fecha a confirmar)");
+  const nombreAutor = nombreHermano(p.autor_id);
+  return `
+    <div class="ebook-encabezado">
+      <div class="simbolo">△</div>
+      <div class="formula">A L.'. G.'. D.'. G.'. A.'. D.'. U.'.</div>
+      <div class="formula">${esc(cfgLugar || "—")}, ${esc(fechaTxt)} (e.'. v.'.)</div>
+      <div class="formula">${esc(gd?.saludo || "")}:</div>
+      <div class="divisor"></div>
+      <div class="titulo-plancha">Plancha</div>
+      <div class="titulo-obra">"${esc(p.titulo || "Sin título")}"</div>
+      <div class="autor">Por el ${esc(gd?.hermano_sing || "H∴")} ${esc(nombreAutor)}</div>
+    </div>
+  `;
+}
 function fmtFechaHora(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -328,11 +378,13 @@ function fmtFechaHora(iso) {
     { data: hermanoPropio },
     { data: gd, error: errGrados },
     { data: herm, error: errHerm },
+    { data: cfg },
   ] = await Promise.all([
     db.rpc("soy_secretario"),
     db.from("hermanos").select("id").eq("auth_user_id", sesion.user.id).maybeSingle(),
     db.from("grados").select("*").order("orden"),
     db.from("hermanos").select("id, nombre_completo, activo").order("nombre_completo"),
+    db.from("secretaria_config").select("*").eq("id", 1).maybeSingle(),
   ]);
 
   if (errSec) console.error("soy_secretario()", errSec);
@@ -343,6 +395,7 @@ function fmtFechaHora(iso) {
   miHermanoId = hermanoPropio?.id || null;
   gradosData = gd || [];
   hermanosData = herm || [];
+  cfgLugar = cfg?.lugar || "";
 
   $("btn-subir-escaneada").style.display = esSecretario ? "inline-flex" : "none";
   poblarSelectGradosFormulario();
@@ -712,9 +765,36 @@ function mostrarEstadoPdf(texto) {
     $("pdf-canvas").style.display = "none";
   } else {
     estado.classList.remove("visible");
-    $("pdf-canvas").style.display = "block";
+    if (!modoEbookActivo) $("pdf-canvas").style.display = "block";
   }
 }
+
+// ---- Modo lectura (ebook) ----
+function activarModoEbook(activo) {
+  modoEbookActivo = activo;
+  const btn = $("btn-modo-ebook");
+  if (activo) {
+    if (planchaEnVisor) {
+      $("modal-pdf-ebook").innerHTML = construirEncabezadoEbook(planchaEnVisor) + (planchaEnVisor.contenido_html || "");
+    }
+    $("modal-pdf-ebook").classList.add("visible");
+    $("pdf-canvas").style.display = "none";
+    $("btn-pagina-ant").style.display = "none";
+    $("btn-pagina-sig").style.display = "none";
+    $("modal-pdf-pagina").style.display = "none";
+    btn.textContent = "📄";
+    btn.title = "Ver PDF";
+  } else {
+    $("modal-pdf-ebook").classList.remove("visible");
+    if (!$("pdf-estado").classList.contains("visible")) $("pdf-canvas").style.display = "block";
+    $("btn-pagina-ant").style.display = "";
+    $("btn-pagina-sig").style.display = "";
+    $("modal-pdf-pagina").style.display = "";
+    btn.textContent = "📱";
+    btn.title = "Ver en formato lectura (celular)";
+  }
+}
+$("btn-modo-ebook").addEventListener("click", () => activarModoEbook(!modoEbookActivo));
 
 function actualizarControlesPagina() {
   $("modal-pdf-pagina").textContent = totalPaginasPdf ? `${paginaPdfActual} / ${totalPaginasPdf}` : "";
@@ -768,11 +848,19 @@ async function verPlancha(id) {
   const { data, error } = await db.storage.from(BUCKET_PLANCHAS).createSignedUrl(p.archivo_url, 600);
   if (error || !data) { toast("No se pudo generar el link para ver la plancha.", true); console.error(error); return; }
 
+  planchaEnVisor = p;
+  // El modo lectura reflowa el texto guardado (contenido_html) — solo
+  // existe para las planchas escritas en la herramienta, no para las
+  // escaneadas (esas son una imagen, no hay texto que reacomodar).
+  const tieneEbook = p.tipo === "generada" && !!p.contenido_html;
+  $("btn-modo-ebook").style.display = tieneEbook ? "inline-flex" : "none";
+
   const titulo = `${p.titulo || "Sin título"} — ${nombreGrado(p.grado_id)} — ${fmtFechaCorta(p.fecha_lectura)}`;
   $("modal-pdf-titulo").textContent = titulo;
   $("link-abrir-pestana").href = data.signedUrl;
   $("modal-pdf-pagina").textContent = "";
   $("modal-pdf").classList.add("abierto");
+  activarModoEbook(false);
   mostrarEstadoPdf("Cargando…");
 
   try {
@@ -797,6 +885,9 @@ function cerrarVisor() {
   renderPendiente = null;
   const canvas = $("pdf-canvas");
   canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+  activarModoEbook(false);
+  $("modal-pdf-ebook").innerHTML = "";
+  planchaEnVisor = null;
 }
 
 $("btn-cerrar-visor").addEventListener("click", cerrarVisor);
