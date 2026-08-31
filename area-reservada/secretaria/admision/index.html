@@ -201,11 +201,18 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../../shared/supabase-client.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<!--
+  pdf-lib: el PDF exportado NO se arma de cero — es el F.117 oficial
+  (f117-template.pdf, el mismo archivo que nos pasaron) con los datos,
+  las fotos y las firmas insertados encima, en las coordenadas exactas
+  de cada casillero. pdf-lib permite cargar un PDF existente y dibujar
+  texto/imágenes sobre él sin tocar el diseño original.
+-->
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script>
 const BUCKET_MEDIA = "admision_media";
 const BUCKET_FIRMAS = "firmas";
+const PLANTILLA_F117 = "f117-template.pdf";
 
 const ESTADOS = [
   { key: "sin_leer", label: "Sin leer" },
@@ -649,234 +656,367 @@ function hoyISO() {
 }
 
 // ============================================================
-// EXPORTAR PDF (réplica del F.117) — mismo patrón que los recibos
-// de Tesorería (html2canvas + jsPDF), con el algoritmo de "corte
-// seguro" para varias páginas que usa Biblioteca de planchas, porque
-// acá el contenido es mucho más largo que un recibo.
+// EXPORTAR PDF — se completa el F.117 oficial (f117-template.pdf),
+// NO se genera un documento con otro diseño. pdf-lib carga el PDF
+// real y dibuja el texto, las fotos y las firmas directamente encima,
+// en las coordenadas exactas de cada casillero (relevadas a partir
+// del propio archivo que nos pasaron). La foto del DNI no tiene
+// casillero en el formulario — se adjunta como página 5, tal como
+// pide la nota al pie de la página 3 del original ("Esta solicitud
+// requiere de una fotocopia o impresión del DNI del solicitante").
 // ============================================================
-async function dataUriDesdeUrl(url) {
+
+// ---- coordenadas de cada casillero, relevadas del PDF original ----
+// (x0,x1: horizontal: top,bottom: vertical medido desde arriba de la
+// hoja — pdfplumber). "img":true = ahí va una imagen, no texto.
+const CELDAS = {
+  // página 1 (índice 0)
+  apellido:               { page: 0, x0: 133.5, x1: 297.5, top: 195,   bottom: 218.3 },
+  nombre:                 { page: 0, x0: 361.5, x1: 556,   top: 195,   bottom: 218.3 },
+  domicilio:              { page: 0, x0: 133.5, x1: 556,   top: 218.5, bottom: 241.5 },
+  telefono:               { page: 0, x0: 133.5, x1: 297.5, top: 241.5, bottom: 264.5 },
+  email:                  { page: 0, x0: 361.5, x1: 556,   top: 241.5, bottom: 264.5 },
+  ciudad:                 { page: 0, x0: 133.5, x1: 297.5, top: 264.5, bottom: 288.5 },
+  provincia:              { page: 0, x0: 361.5, x1: 556,   top: 264.5, bottom: 288.5 },
+  // fecha de nacimiento: el formulario ya trae impresas las rayitas
+  // "___ / ___ / ___" — en vez de tapar esa línea con un texto centrado
+  // en toda la celda, el día/mes/año se escriben cada uno arriba de su
+  // propio segmento de rayitas (coordenadas relevadas del original).
+  fechaNacimientoDia:     { page: 0, x0: 169.6, x1: 194.9, top: 297,   bottom: 310.7 },
+  fechaNacimientoMes:     { page: 0, x0: 201.2, x1: 226.5, top: 297,   bottom: 310.7 },
+  fechaNacimientoAnio:    { page: 0, x0: 232.9, x1: 261.3, top: 297,   bottom: 310.7 },
+  dni:                    { page: 0, x0: 361.5, x1: 556,   top: 288.5, bottom: 317 },
+  paisCiudadNacimiento:   { page: 0, x0: 277.5, x1: 556,   top: 341.5, bottom: 364.5 },
+  tiempoResidencia:       { page: 0, x0: 277.5, x1: 556,   top: 364.5, bottom: 390 },
+  nombrePadre:            { page: 0, x0: 194.5, x1: 556,   top: 414.5, bottom: 438.5 },
+  nombreMadre:            { page: 0, x0: 194.5, x1: 556,   top: 438.5, bottom: 461 },
+  estadoCivil:            { page: 0, x0: 194.5, x1: 556,   top: 461,   bottom: 484.5 },
+  nombreConyuge:          { page: 0, x0: 194.5, x1: 556,   top: 484.5, bottom: 507.5 },
+  fechaConyugeDia:        { page: 0, x0: 322.5, x1: 351.3, top: 508.5, bottom: 523.4 },
+  fechaConyugeMes:        { page: 0, x0: 358.6, x1: 387.4, top: 508.5, bottom: 523.4 },
+  fechaConyugeAnio:       { page: 0, x0: 394.7, x1: 427.2, top: 508.5, bottom: 523.4 },
+  hijo1:                  { page: 0, x0: 64.7,  x1: 251.5, top: 554.5, bottom: 577.5 },
+  hijo2:                  { page: 0, x0: 64.7,  x1: 251.5, top: 577.5, bottom: 600.5 },
+  hijo3:                  { page: 0, x0: 64.7,  x1: 251.5, top: 600.5, bottom: 625.5 },
+  hijo4:                  { page: 0, x0: 271,   x1: 556,   top: 554.5, bottom: 577.5 },
+  hijo5:                  { page: 0, x0: 271,   x1: 556,   top: 577.5, bottom: 600.5 },
+  hijo6:                  { page: 0, x0: 271,   x1: 556,   top: 600.5, bottom: 625.5 },
+  nivelEstudios:          { page: 0, x0: 169.5, x1: 556,   top: 650.5, bottom: 673.5 },
+  carrera:                { page: 0, x0: 169.5, x1: 556,   top: 673.5, bottom: 696.5 },
+  titulo:                 { page: 0, x0: 169.5, x1: 556,   top: 696.5, bottom: 720.5 },
+
+  // página 2 (índice 1)
+  profesion:              { page: 1, x0: 188.5, x1: 338.5, top: 84.5,  bottom: 112.5 },
+  rubro:                  { page: 1, x0: 458.5, x1: 556,   top: 84.5,  bottom: 112.5 },
+  empresa:                { page: 1, x0: 188.5, x1: 556,   top: 112.5, bottom: 135.5 },
+  afiliaciones:           { page: 1, x0: 48,     x1: 554,   top: 178,   bottom: 275, multilinea: true },
+  corrientes:             { page: 1, x0: 48,     x1: 554,   top: 350,   bottom: 576, multilinea: true },
+  familiaresMasones:      { page: 1, x0: 48,     x1: 555,   top: 620,   bottom: 736, multilinea: true },
+
+  // página 3 (índice 2)
+  fotoPerfil:             { page: 2, x0: 84.5,  x1: 296.5, top: 384.5, bottom: 531.5, img: true },
+  // el recuadro de firma arranca un poco más abajo del borde real de la
+  // celda para no tapar la etiqueta impresa "FIRMA :" que vive arriba
+  // de este mismo casillero.
+  firmaCandidato:         { page: 2, x0: 296.5, x1: 509.5, top: 403,   bottom: 455,   img: true },
+  aclaracion:             { page: 2, x0: 296.5, x1: 509.5, top: 457.5, bottom: 494.5 },
+  lugarFecha:             { page: 2, x0: 296.5, x1: 509.5, top: 494.5, bottom: 531.5 },
+  proponenteNombre:       { page: 2, x0: 126.6, x1: 555.6, top: 593.3, bottom: 618.8 },
+  proponenteFechaDia:     { page: 2, x0: 367.9, x1: 404.0, top: 626,   bottom: 641.2 },
+  proponenteFechaMes:     { page: 2, x0: 411.2, x1: 447.3, top: 626,   bottom: 641.2 },
+  proponenteFechaAnio:    { page: 2, x0: 454.6, x1: 494.2, top: 626,   bottom: 641.2 },
+  // la etiqueta "FIRMA" para el proponente está en la columna rosada de
+  // la izquierda (fuera de este casillero), así que acá no hace falta
+  // el mismo ajuste que en la firma del candidato.
+  proponenteFirma:        { page: 2, x0: 306.6, x1: 555.6, top: 649,   bottom: 721,   img: true },
+
+  // página 4 (índice 3)
+  logia:                  { page: 3, x0: 145.3, x1: 300.6, top: 83.3,  bottom: 113.3 },
+  numero:                 { page: 3, x0: 385.3, x1: 555.6, top: 83.3,  bottom: 113.3 },
+  provinciaLogia:         { page: 3, x0: 145.3, x1: 300.6, top: 113.3, bottom: 143.3 },
+  ciudadLogia:            { page: 3, x0: 385.3, x1: 555.6, top: 113.3, bottom: 143.3 },
+  fechaTratamiento:       { page: 3, x0: 145.3, x1: 555.6, top: 143.3, bottom: 174.0 },
+  firmaVM:                { page: 3, x0: 145.3, x1: 300.6, top: 174.0, bottom: 210,   img: true },
+  aclaracionVM:           { page: 3, x0: 145.3, x1: 300.6, top: 210,   bottom: 234.8 },
+  firmaSec:               { page: 3, x0: 385.3, x1: 555.6, top: 174.0, bottom: 210,   img: true },
+  aclaracionSec:          { page: 3, x0: 385.3, x1: 555.6, top: 210,   bottom: 234.8 },
+};
+
+let plantillaBytesCache = null;
+async function obtenerPlantillaBytes() {
+  if (!plantillaBytesCache) {
+    const resp = await fetch(PLANTILLA_F117);
+    if (!resp.ok) throw new Error("No se pudo cargar la plantilla f117-template.pdf");
+    plantillaBytesCache = await resp.arrayBuffer();
+  }
+  return plantillaBytesCache.slice(0); // copia: PDFDocument.load consume/mantiene referencia al buffer
+}
+
+async function bytesDesdeUrl(url) {
   if (!url) return null;
+  const resp = await fetch(url);
+  if (!resp.ok) return null;
+  return new Uint8Array(await resp.arrayBuffer());
+}
+
+// Detecta PNG vs JPG por los primeros bytes y usa el embed correcto de
+// pdf-lib (no alcanza con mirar la extensión: la firma dibujada a mano
+// siempre es PNG, pero una firma subida como archivo o una foto sacada
+// con la cámara suelen ser JPG).
+async function embeberImagenAuto(pdfDoc, bytes) {
+  if (!bytes || bytes.length < 4) return null;
+  const esPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
   try {
-    const resp = await fetch(url);
-    const blob = await resp.blob();
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.readAsDataURL(blob);
-    });
+    return esPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes);
   } catch (e) {
-    console.error(e);
+    console.error("No se pudo incrustar la imagen:", e);
     return null;
   }
 }
 
-async function construirHtmlSolicitud(s) {
-  const [fotoPerfil, fotoDni, firmaCand] = await Promise.all([
-    signedUrlMedia(s.foto_perfil_url).then(dataUriDesdeUrl),
-    signedUrlMedia(s.foto_dni_url).then(dataUriDesdeUrl),
-    signedUrlMedia(s.firma_candidato_url).then(dataUriDesdeUrl),
-  ]);
-
-  let firmaProponente = null, nombreProp = null;
-  let firmaVm = null, nombreVm = null, firmaSec = null, nombreSec = null;
-  const idsAResolver = [s.proponente_id, s.firmante_vm_id, s.firmante_secretario_id].filter(Boolean);
-  if (idsAResolver.length) {
-    const { data: hs } = await db.from("hermanos").select("id,nombre_completo,firma_url").in("id", idsAResolver);
-    const buscar = (id) => (hs || []).find((h) => h.id === id);
-    if (s.proponente_id) { const h = buscar(s.proponente_id); nombreProp = h?.nombre_completo; firmaProponente = h?.firma_url ? await signedUrlFirma(h.firma_url).then(dataUriDesdeUrl) : null; }
-    if (s.firmante_vm_id) { const h = buscar(s.firmante_vm_id); nombreVm = h?.nombre_completo; firmaVm = h?.firma_url ? await signedUrlFirma(h.firma_url).then(dataUriDesdeUrl) : null; }
-    if (s.firmante_secretario_id) { const h = buscar(s.firmante_secretario_id); nombreSec = h?.nombre_completo; firmaSec = h?.firma_url ? await signedUrlFirma(h.firma_url).then(dataUriDesdeUrl) : null; }
-  }
-
-  const fila = (label, valor) => `<div class="f117-fila"><span class="f117-label">${esc(label)}</span><span class="f117-valor">${esc(valor) || "—"}</span></div>`;
-  const bloque = (titulo, contenido) => `<div class="f117-bloque"><h3>${esc(titulo)}</h3>${contenido}</div>`;
-
-  const div = document.createElement("div");
-  div.className = "f117-hoja";
-  div.style.width = "180mm";
-  div.style.maxWidth = "100vw";
-  div.style.boxSizing = "border-box";
-  div.innerHTML = `
-    <style>
-      .f117-hoja { font-family: Georgia, 'Times New Roman', serif; color:#1c1c1c; background:#fdfaf2; padding:6mm; }
-      .f117-hoja .f117-header { text-align:center; margin-bottom:16px; }
-      .f117-hoja .f117-header .simbolo { font-size:1.6rem; color:#8a6d2f; }
-      .f117-hoja .f117-header h1 { font-size:1.3rem; margin:4px 0 2px; }
-      .f117-hoja .f117-header .sub { font-size:.85rem; color:#555; }
-      .f117-hoja .f117-estado { display:inline-block; margin-top:8px; padding:3px 12px; border:1px solid #8a6d2f; border-radius:14px; font-size:.72rem; letter-spacing:.05em; text-transform:uppercase; }
-      .f117-bloque { margin-bottom:16px; page-break-inside:avoid; }
-      .f117-bloque h3 { font-size:.78rem; letter-spacing:.06em; text-transform:uppercase; color:#8a6d2f; border-bottom:1px solid #c9a85d; padding-bottom:4px; margin:0 0 8px; }
-      .f117-fila { display:flex; justify-content:space-between; gap:10px; font-size:.86rem; padding:3px 0; }
-      .f117-label { color:#555; flex-shrink:0; }
-      .f117-valor { text-align:right; }
-      .f117-fotos { display:flex; gap:14px; margin-top:6px; }
-      .f117-fotos img { width:110px; height:110px; object-fit:cover; border:1px solid #ccc; border-radius:4px; }
-      .f117-firma-box { display:inline-block; text-align:center; margin-right:24px; margin-top:10px; vertical-align:top; }
-      .f117-firma-box img { display:block; max-width:150px; max-height:70px; margin:0 auto 4px; }
-      .f117-firma-linea { width:150px; border-top:1px solid #444; margin-top:4px; padding-top:3px; font-size:.74rem; }
-      .f117-declaracion { font-size:.78rem; color:#444; line-height:1.5; }
-    </style>
-
-    <div class="f117-header">
-      <div class="simbolo">△</div>
-      <h1>Resp∴ Log∴ José Hernández N° 75</h1>
-      <div class="sub">Solicitud de Admisión — F.117</div>
-      <div class="f117-estado">${esc(ESTADOS.find((e) => e.key === s.estado)?.label || s.estado)}</div>
-    </div>
-
-    ${bloque("Datos personales", `
-      ${fila("Nombre completo", nombreCompleto(s))}
-      ${fila("DNI", s.dni)}
-      ${fila("Fecha de nacimiento", fmtFecha(s.fecha_nacimiento))}
-      ${fila("Domicilio", s.domicilio)}
-      ${fila("Ciudad / Provincia", `${s.ciudad || "—"} / ${s.provincia || "—"}`)}
-      ${fila("Teléfono", s.telefono)}
-      ${fila("Email", s.email)}
-      ${s.nacido_exterior ? fila("Nacido en el exterior", `${s.ciudad_nacimiento || "—"}, ${s.pais_nacimiento || "—"} (${s.anios_residencia_argentina ?? "—"} años en Argentina)`) : ""}
-    `)}
-
-    ${bloque("Información familiar", `
-      ${fila("Padre", s.nombre_padre)}
-      ${fila("Madre", s.nombre_madre)}
-      ${fila("Estado civil", s.estado_civil)}
-      ${s.estado_civil === "Casado/a" ? fila("Cónyuge", `${s.nombre_conyuge || "—"} (${fmtFecha(s.fecha_nacimiento_conyuge)})`) : ""}
-      ${fila("Hijos", (s.hijos || []).length ? s.hijos.map((h) => `${h.nombre} (${h.edad ?? "?"})`).join(", ") : "—")}
-    `)}
-
-    ${bloque("Formación académica", `
-      ${fila("Nivel de estudios", s.nivel_estudios)}
-      ${fila("Carrera / estudios", s.carrera)}
-      ${fila("Título obtenido", s.titulo_obtenido)}
-    `)}
-
-    ${bloque("Información profesional", `
-      ${fila("Profesión / ocupación", s.profesion)}
-      ${fila("Rubro", s.rubro)}
-      ${fila("Empresa contratante", s.empresa_contratante)}
-    `)}
-
-    ${bloque("Preguntas", `
-      <p class="f117-declaracion"><strong>Asociaciones religiosas, culturales o benéficas:</strong> ${esc(s.afiliaciones_religiosas_culturales) || "—"}</p>
-      <p class="f117-declaracion"><strong>Corrientes de pensamiento:</strong> ${esc(s.corrientes_pensamiento) || "—"}</p>
-      <p class="f117-declaracion"><strong>Familiares masones:</strong> ${esc(s.familiares_masones) || "—"}</p>
-    `)}
-
-    ${bloque("Declaración jurada", `
-      <p class="f117-declaracion">
-        El solicitante declaró bajo juramento que los datos consignados son verdaderos, que conoce en términos
-        generales la naturaleza y los principios de la Masonería, que no posee antecedentes penales y que la
-        documentación adjunta es auténtica. Declaración aceptada: ${s.acepta_declaracion ? "Sí" : "No"}.
-      </p>
-    `)}
-
-    ${bloque("Foto, DNI y firma del candidato", `
-      <div class="f117-fotos">
-        ${fotoPerfil ? `<img src="${fotoPerfil}" alt="Foto de perfil">` : ""}
-        ${fotoDni ? `<img src="${fotoDni}" alt="DNI">` : ""}
-      </div>
-      <div class="f117-firma-box">
-        ${firmaCand ? `<img src="${firmaCand}" alt="Firma">` : ""}
-        <div class="f117-firma-linea">${esc(s.firma_aclaracion) || "Firma del candidato"}</div>
-      </div>
-      ${fila("Lugar y fecha", `${s.firma_lugar || "—"}, ${fmtFecha(s.firma_fecha)}`)}
-    `)}
-
-    ${(s.proponente_id) ? bloque("Maestro Proponente", `
-      ${fila("Nombre", nombreProp)}
-      ${fila("Fecha de entrega", fmtFecha(s.proponente_fecha_entrega))}
-      <div class="f117-firma-box">
-        ${firmaProponente ? `<img src="${firmaProponente}" alt="Firma proponente">` : ""}
-        <div class="f117-firma-linea">${esc(nombreProp) || "Firma del proponente"}</div>
-      </div>
-    `) : ""}
-
-    ${s.estado === "aprobada" ? bloque("A completar por la Logia", `
-      ${fila("Logia", "José Hernández")}
-      ${fila("Número", "75")}
-      ${fila("Provincia", "Buenos Aires")}
-      ${fila("Fecha de tratamiento", fmtFecha(s.fecha_tratamiento))}
-      <div>
-        <div class="f117-firma-box">
-          ${firmaVm ? `<img src="${firmaVm}" alt="Firma VM">` : ""}
-          <div class="f117-firma-linea">${esc(nombreVm) || "Venerable Maestro"}</div>
-        </div>
-        <div class="f117-firma-box">
-          ${firmaSec ? `<img src="${firmaSec}" alt="Firma Secretario">` : ""}
-          <div class="f117-firma-linea">${esc(nombreSec) || "Secretario"}</div>
-        </div>
-      </div>
-    `) : ""}
-
-    ${s.estado === "descartada" ? bloque("Libro Negro", `
-      ${fila("Motivo", s.motivo_descarte)}
-      ${fila("Fecha", fmtFechaHora(s.descartada_en))}
-    `) : ""}
-  `;
-  return div;
+function rectPdf(celda, alturaPagina) {
+  return {
+    x: celda.x0,
+    y: alturaPagina - celda.bottom,
+    width: celda.x1 - celda.x0,
+    height: celda.bottom - celda.top,
+  };
 }
 
-async function generarPdfDesdeElemento(elemento) {
-  document.body.appendChild(elemento);
-  await document.fonts.ready;
-  await new Promise((r) => setTimeout(r, 60));
-  let canvas;
-  try {
-    canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: "#fdfaf2" });
-  } finally {
-    elemento.remove();
+// La tipografía estándar (Helvetica) solo puede dibujar caracteres
+// Latin-1 (WinAnsi) — cualquier otra cosa hace explotar pdf-lib. Esto
+// importa en la práctica: los campos de texto libre los completa el
+// candidato desde el celular (puede tipear cualquier cosa, emojis
+// incluidos) y los nombres de HH∴ en el sistema a veces llevan el
+// símbolo "∴", que tampoco es Latin-1. Se sanea todo antes de dibujar.
+function limpiarTexto(s) {
+  if (s === null || s === undefined) return s;
+  return String(s)
+    .replace(/∴/g, ".")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[–—]/g, "-")
+    .replace(/[^\x00-\xFF]/g, "");
+}
+
+// Texto de una sola línea, centrado verticalmente en el casillero, con
+// achique automático de la tipografía si no entra en el ancho.
+function dibujarTextoCelda(pagina, font, texto, celda, alturaPagina, opts = {}) {
+  texto = limpiarTexto(texto);
+  if (!texto) return;
+  const r = rectPdf(celda, alturaPagina);
+  const padX = opts.padX ?? 5;
+  const anchoMax = r.width - padX * 2;
+  let fontSize = opts.fontSize ?? 9;
+  const minSize = 6;
+  while (fontSize > minSize && font.widthOfTextAtSize(texto, fontSize) > anchoMax) fontSize -= 0.5;
+  const y = r.y + (r.height - fontSize) / 2 + fontSize * 0.16;
+  const align = opts.align || "left";
+  let x = r.x + padX;
+  if (align === "center") {
+    x = r.x + (r.width - font.widthOfTextAtSize(texto, fontSize)) / 2;
   }
+  pagina.drawText(texto, { x, y, size: fontSize, font, color: PDFLib.rgb(0.11, 0.11, 0.11) });
+}
 
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-  const marginLeft = 15, marginRight = 15, marginTop = 15, marginBottom = 18;
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const usableW = pageW - marginLeft - marginRight;
-  const usableH = pageH - marginTop - marginBottom;
+// Texto largo con salto de línea automático, alineado arriba, con
+// achique de tipografía si el párrafo no entra en el alto del recuadro.
+function dibujarTextoLargoCelda(pagina, font, texto, celda, alturaPagina, opts = {}) {
+  texto = limpiarTexto(texto);
+  if (!texto) return;
+  const r = rectPdf(celda, alturaPagina);
+  const padX = opts.padX ?? 6;
+  const padY = opts.padY ?? 8;
+  const anchoMax = r.width - padX * 2;
+  const altoMax = r.height - padY * 2;
 
-  const imgW = usableW;
-  const pxPerMm = canvas.width / imgW;
-  const pageHpx = usableH * pxPerMm;
-
-  const ctxOrigen = canvas.getContext("2d");
-  function filaEsBlanca(y) {
-    const { data } = ctxOrigen.getImageData(0, y, canvas.width, 1);
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) return false;
+  function armarLineas(fontSize) {
+    const lineHeight = fontSize * 1.35;
+    const palabras = texto.split(/\s+/).filter(Boolean);
+    const lineas = [];
+    let actual = "";
+    for (const palabra of palabras) {
+      const prueba = actual ? actual + " " + palabra : palabra;
+      if (font.widthOfTextAtSize(prueba, fontSize) > anchoMax && actual) {
+        lineas.push(actual);
+        actual = palabra;
+      } else {
+        actual = prueba;
+      }
     }
-    return true;
+    if (actual) lineas.push(actual);
+    return { lineas, lineHeight };
   }
-  function corteSeguro(objetivoY) {
-    const ventana = Math.round(pxPerMm * 12);
-    for (let d = 0; d <= ventana; d++) {
-      const arriba = objetivoY - d;
-      if (arriba > 0 && filaEsBlanca(arriba)) return arriba;
-      const abajo = objetivoY + d;
-      if (abajo < canvas.height && filaEsBlanca(abajo)) return abajo;
+
+  let fontSize = opts.fontSize ?? 9;
+  const minSize = 6.5;
+  let resultado = armarLineas(fontSize);
+  while (fontSize > minSize && resultado.lineas.length * resultado.lineHeight > altoMax) {
+    fontSize -= 0.5;
+    resultado = armarLineas(fontSize);
+  }
+
+  let y = r.y + r.height - padY - fontSize;
+  for (const linea of resultado.lineas) {
+    if (y < r.y) break; // se acabó el recuadro: no seguimos escribiendo fuera del casillero
+    pagina.drawText(linea, { x: r.x + padX, y, size: fontSize, font, color: PDFLib.rgb(0.11, 0.11, 0.11) });
+    y -= resultado.lineHeight;
+  }
+}
+
+// Imagen dentro del casillero, escalada para entrar completa (contain),
+// centrada.
+function dibujarImagenCelda(pagina, imagen, celda, alturaPagina, pad = 5) {
+  if (!imagen) return;
+  const r = rectPdf(celda, alturaPagina);
+  const anchoDisp = r.width - pad * 2;
+  const altoDisp = r.height - pad * 2;
+  const escala = Math.min(anchoDisp / imagen.width, altoDisp / imagen.height);
+  const w = imagen.width * escala;
+  const h = imagen.height * escala;
+  const x = r.x + (r.width - w) / 2;
+  const y = r.y + (r.height - h) / 2;
+  pagina.drawImage(imagen, { x, y, width: w, height: h });
+}
+
+function fmtFechaCorta(iso) {
+  if (!iso) return "";
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+
+async function generarPdfF117(s) {
+  const plantilla = await obtenerPlantillaBytes();
+  const pdfDoc = await PDFLib.PDFDocument.load(plantilla);
+  const paginas = pdfDoc.getPages();
+  const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+  function texto(clave, valor, opts) {
+    const celda = CELDAS[clave];
+    const pagina = paginas[celda.page];
+    const alturaPagina = pagina.getHeight();
+    if (celda.multilinea) dibujarTextoLargoCelda(pagina, font, valor, celda, alturaPagina, opts);
+    else dibujarTextoCelda(pagina, font, valor, celda, alturaPagina, opts);
+  }
+  // Para los campos de fecha con rayitas ya impresas ("___ / ___ / ___"):
+  // escribe día, mes y año cada uno arriba de su propio segmento.
+  function fechaEnBlancos(prefijo, iso) {
+    if (!iso) return;
+    const [anio, mes, dia] = iso.split("-");
+    texto(`${prefijo}Dia`, dia, { align: "center", fontSize: 8.5 });
+    texto(`${prefijo}Mes`, mes, { align: "center", fontSize: 8.5 });
+    texto(`${prefijo}Anio`, anio, { align: "center", fontSize: 8.5 });
+  }
+  async function imagenDesdeUrl(clave, url) {
+    const celda = CELDAS[clave];
+    const bytes = await bytesDesdeUrl(url);
+    if (!bytes) return;
+    const img = await embeberImagenAuto(pdfDoc, bytes);
+    if (!img) return;
+    const pagina = paginas[celda.page];
+    dibujarImagenCelda(pagina, img, celda, pagina.getHeight());
+  }
+
+  // ---- datos personales ----
+  texto("apellido", s.apellido);
+  texto("nombre", s.nombre);
+  texto("domicilio", s.domicilio);
+  texto("telefono", s.telefono);
+  texto("email", s.email);
+  texto("ciudad", s.ciudad);
+  texto("provincia", s.provincia);
+  fechaEnBlancos("fechaNacimiento", s.fecha_nacimiento);
+  texto("dni", s.dni);
+  if (s.nacido_exterior) {
+    texto("paisCiudadNacimiento", [s.ciudad_nacimiento, s.pais_nacimiento].filter(Boolean).join(", "));
+    texto("tiempoResidencia", s.anios_residencia_argentina != null ? `${s.anios_residencia_argentina} años` : "");
+  }
+
+  // ---- familia ----
+  texto("nombrePadre", s.nombre_padre);
+  texto("nombreMadre", s.nombre_madre);
+  texto("estadoCivil", s.estado_civil);
+  if (s.estado_civil === "Casado/a") {
+    texto("nombreConyuge", s.nombre_conyuge);
+    fechaEnBlancos("fechaConyuge", s.fecha_nacimiento_conyuge);
+  }
+  (s.hijos || []).slice(0, 6).forEach((h, i) => {
+    texto(`hijo${i + 1}`, h.edad != null ? `${h.nombre} — ${h.edad}` : h.nombre, { fontSize: 8.5 });
+  });
+
+  // ---- formación y profesión ----
+  texto("nivelEstudios", s.nivel_estudios);
+  texto("carrera", s.carrera);
+  texto("titulo", s.titulo_obtenido);
+  texto("profesion", s.profesion, { fontSize: 8 });
+  texto("rubro", s.rubro, { fontSize: 8 });
+  texto("empresa", s.empresa_contratante);
+
+  // ---- preguntas abiertas ----
+  texto("afiliaciones", s.afiliaciones_religiosas_culturales);
+  texto("corrientes", s.corrientes_pensamiento);
+  texto("familiaresMasones", s.familiares_masones);
+
+  // ---- foto, firma y DNI del candidato ----
+  await imagenDesdeUrl("fotoPerfil", await signedUrlMedia(s.foto_perfil_url));
+  await imagenDesdeUrl("firmaCandidato", await signedUrlMedia(s.firma_candidato_url));
+  texto("aclaracion", s.firma_aclaracion, { fontSize: 8 });
+  texto("lugarFecha", s.firma_lugar && s.firma_fecha ? `${s.firma_lugar}, ${fmtFechaCorta(s.firma_fecha)}` : "", { fontSize: 8 });
+
+  // ---- maestro proponente (si ya fue designado) ----
+  if (s.proponente_id) {
+    const nombreProp = nombreProponente(s.proponente_id);
+    texto("proponenteNombre", nombreProp);
+    fechaEnBlancos("proponenteFecha", s.proponente_fecha_entrega);
+    const propon = maestros.find((m) => m.id === s.proponente_id);
+    if (propon?.firma_url) await imagenDesdeUrl("proponenteFirma", await signedUrlFirma(propon.firma_url));
+  }
+
+  // ---- sección a completar por la Logia (si ya fue aprobada) ----
+  if (s.estado === "aprobada") {
+    texto("logia", "José Hernández");
+    texto("numero", "75", { align: "center" });
+    texto("provinciaLogia", "Buenos Aires");
+    texto("ciudadLogia", "Valle de Junín");
+    texto("fechaTratamiento", fmtFechaCorta(s.fecha_tratamiento), { align: "center" });
+
+    const idsFirmantes = [s.firmante_vm_id, s.firmante_secretario_id].filter(Boolean);
+    if (idsFirmantes.length) {
+      const { data: hs } = await db.from("hermanos").select("id,nombre_completo,firma_url").in("id", idsFirmantes);
+      const buscar = (id) => (hs || []).find((h) => h.id === id);
+      if (s.firmante_vm_id) {
+        const h = buscar(s.firmante_vm_id);
+        if (h?.firma_url) await imagenDesdeUrl("firmaVM", await signedUrlFirma(h.firma_url));
+        texto("aclaracionVM", h?.nombre_completo, { fontSize: 8 });
+      }
+      if (s.firmante_secretario_id) {
+        const h = buscar(s.firmante_secretario_id);
+        if (h?.firma_url) await imagenDesdeUrl("firmaSec", await signedUrlFirma(h.firma_url));
+        texto("aclaracionSec", h?.nombre_completo, { fontSize: 8 });
+      }
     }
-    return objetivoY;
   }
 
-  let renderedPx = 0, primera = true;
-  while (renderedPx < canvas.height) {
-    const objetivo = renderedPx + pageHpx;
-    let finPx = objetivo >= canvas.height ? canvas.height : corteSeguro(Math.round(objetivo));
-    if (finPx <= renderedPx) finPx = Math.min(Math.round(objetivo), canvas.height);
-    const sliceHpx = finPx - renderedPx;
-    const slice = document.createElement("canvas");
-    slice.width = canvas.width;
-    slice.height = sliceHpx;
-    slice.getContext("2d").drawImage(canvas, 0, renderedPx, canvas.width, sliceHpx, 0, 0, canvas.width, sliceHpx);
-
-    const sliceHmm = sliceHpx / pxPerMm;
-    if (!primera) pdf.addPage();
-    pdf.addImage(slice.toDataURL("image/jpeg", 0.92), "JPEG", marginLeft, marginTop, imgW, sliceHmm);
-
-    renderedPx = finPx;
-    primera = false;
+  // ---- página 5: DNI adjunto (el formulario no tiene casillero para
+  // esto — la nota al pie de la página 3 pide adjuntarlo aparte) ----
+  const dniBytes = await bytesDesdeUrl(await signedUrlMedia(s.foto_dni_url));
+  if (dniBytes) {
+    const imgDni = await embeberImagenAuto(pdfDoc, dniBytes);
+    if (imgDni) {
+      const paginaDni = pdfDoc.addPage([595.28, 841.89]);
+      const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+      paginaDni.drawText("DNI del solicitante (adjunto)", { x: 45, y: 800, size: 12, font: fontBold, color: PDFLib.rgb(0.11, 0.11, 0.11) });
+      const margen = 45;
+      const anchoDisp = paginaDni.getWidth() - margen * 2;
+      const altoDisp = paginaDni.getHeight() - 120;
+      const escala = Math.min(anchoDisp / imgDni.width, altoDisp / imgDni.height, 1);
+      const w = imgDni.width * escala;
+      const h = imgDni.height * escala;
+      paginaDni.drawImage(imgDni, { x: margen, y: paginaDni.getHeight() - 90 - h, width: w, height: h });
+    }
   }
 
-  return pdf.output("blob");
+  return pdfDoc.save();
 }
 
 async function descargarPdf(id) {
@@ -884,8 +1024,8 @@ async function descargarPdf(id) {
   if (!s) return;
   toast("Generando PDF…");
   try {
-    const div = await construirHtmlSolicitud(s);
-    const blob = await generarPdfDesdeElemento(div);
+    const bytes = await generarPdfF117(s);
+    const blob = new Blob([bytes], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
     setTimeout(() => URL.revokeObjectURL(url), 60000);
