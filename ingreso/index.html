@@ -744,16 +744,29 @@ $("btn-enviar").addEventListener("click", async () => {
   try {
     const carpeta = solicitudId;
 
-    // upsert:true es importante acá: si un envío anterior falló después de
-    // subir algún archivo pero antes de terminar, el reintento usa el mismo
-    // solicitudId (mismas rutas) — sin upsert, la subida chocaría con el
-    // archivo que ya había quedado del intento anterior y el reintento
-    // fallaría siempre, en loop, sin poder avanzar nunca.
+    // Antes usábamos upsert:true para que un reintento (mismo solicitudId)
+    // no chocara con un archivo ya subido en un intento anterior. Pero el
+    // bucket admision_media, a propósito, no le da a "anon" permiso de
+    // lectura (solo Secretario/VM/proponente pueden leer las fotos de un
+    // candidato) — y en Postgres, cualquier INSERT con "ON CONFLICT" (lo
+    // que upsert:true dispara del lado del servidor) necesita poder
+    // "ver" si ya existe una fila en conflicto, así que sin política de
+    // SELECT para anon la operación se rechaza siempre por RLS, aunque el
+    // archivo sea nuevo y no haya ningún conflicto real. Se comprobó
+    // directo en la base: el mismo INSERT sin "ON CONFLICT" funciona, y
+    // con "ON CONFLICT DO NOTHING" (sin upsert real de por medio) ya
+    // falla igual.
+    //
+    // La solución que sí funciona con este esquema de permisos: cada
+    // intento de envío sube los archivos con un nombre propio (un sufijo
+    // al azar), así nunca puede chocar con nada de un intento anterior y
+    // no hace falta upsert ni ON CONFLICT en absoluto.
+    const intento = crypto.randomUUID();
     const [subidaPerfil, subidaDni, subidaFirma] = await Promise.all([
-      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/perfil.jpg`, archivoPerfil, { contentType: archivoPerfil.type || "image/jpeg", upsert: true }),
-      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/dni.jpg`, archivoDni, { contentType: archivoDni.type || "image/jpeg", upsert: true }),
+      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/${intento}-perfil.jpg`, archivoPerfil, { contentType: archivoPerfil.type || "image/jpeg" }),
+      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/${intento}-dni.jpg`, archivoDni, { contentType: archivoDni.type || "image/jpeg" }),
       new Promise((resolve) => $("firma-canvas").toBlob(resolve, "image/png")).then(blob =>
-        db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/firma.png`, blob, { contentType: "image/png", upsert: true })
+        db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/${intento}-firma.png`, blob, { contentType: "image/png" })
       ),
     ]);
     if (subidaPerfil.error) throw new Error("No se pudo subir la foto de perfil: " + subidaPerfil.error.message);
@@ -791,9 +804,9 @@ $("btn-enviar").addEventListener("click", async () => {
       corrientes_pensamiento: $("f-corrientes").value.trim() || null,
       familiares_masones: $("f-familiares-masones").value.trim() || null,
       acepta_declaracion: $("f-acepta-declaracion").checked,
-      foto_perfil_url: `${carpeta}/perfil.jpg`,
-      foto_dni_url: `${carpeta}/dni.jpg`,
-      firma_candidato_url: `${carpeta}/firma.png`,
+      foto_perfil_url: `${carpeta}/${intento}-perfil.jpg`,
+      foto_dni_url: `${carpeta}/${intento}-dni.jpg`,
+      firma_candidato_url: `${carpeta}/${intento}-firma.png`,
       firma_aclaracion: $("f-firma-aclaracion").value.trim(),
       firma_lugar: $("f-firma-lugar").value.trim(),
       firma_fecha: $("f-firma-fecha").value,
