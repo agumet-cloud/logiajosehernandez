@@ -78,6 +78,14 @@ h1,h2,h3 { font-family:"Cormorant Garamond", Georgia, serif; font-weight:500; li
 h1 { font-size:clamp(3.2rem, 7vw, 6.7rem); margin:0 0 24px; letter-spacing:-.025em; }
 .hero p { max-width:650px; color:#d0d5ce; font-size:1.05rem; }
 .hero-rule { width:92px; height:1px; background:var(--gold); margin:28px 0; }
+.hero-cta {
+  display:inline-flex; align-items:center; gap:10px;
+  background:var(--gold); color:#03110c;
+  padding:15px 30px; margin-top:8px;
+  font-size:.74rem; letter-spacing:.14em; text-transform:uppercase; font-weight:500;
+  border-radius:2px; text-decoration:none; transition:.25s ease;
+}
+.hero-cta:hover { background:#e0c98b; }
 
 section { padding:120px 0; }
 .section-kicker {
@@ -621,6 +629,7 @@ h2 { font-size:clamp(2.5rem,5vw,4.5rem); margin:0 0 28px; }
       <a href="#principios">Principios</a>
       <a href="#ceremonias">El símbolo</a>
       <a href="#contacto">Contacto</a>
+      <a href="ingreso/index.html">Quiero Ingresar</a>
       <a href="area-reservada/index.html">Acceso Reservado</a>
     </nav>
     <button class="menu" id="menu" aria-label="Abrir menú">☰</button>
@@ -638,6 +647,7 @@ h2 { font-size:clamp(2.5rem,5vw,4.5rem); margin:0 0 28px; }
       Una Logia Masónica dedicada al estudio, al trabajo simbólico
       y a la construcción fraterna.
     </p>
+    <a class="hero-cta" href="ingreso/index.html">Quiero Ingresar</a>
   </div>
 </section>
 
