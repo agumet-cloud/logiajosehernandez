@@ -423,10 +423,34 @@ function escAttr(s) {
 }
 
 // ---- captura de fotos (cámara) ----
+// Las fotos sacadas con la cámara del celular suelen guardar los píxeles
+// "acostados" y un tag EXIF que dice cuánto rotar al mostrarlas. Un
+// <img> del navegador respeta ese tag y se ve bien, pero pdf-lib (que
+// arma el PDF más adelante en Secretaría) lee los píxeles tal cual,
+// sin mirar el EXIF — por eso ahí salía girada. Se corrige acá, una
+// sola vez, redibujando la foto ya derecha en un canvas antes de
+// guardarla: createImageBitmap con imageOrientation:"from-image" hace
+// exactamente esa rotación por nosotros.
+async function normalizarOrientacion(archivo) {
+  try {
+    const bitmap = await createImageBitmap(archivo, { imageOrientation: "from-image" });
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    return blob || archivo;
+  } catch (e) {
+    console.error("No se pudo enderezar la foto, se usa tal cual se sacó:", e);
+    return archivo;
+  }
+}
+
 function initCaptura(inputId, previewId, placeholderId, guardarEn) {
-  $(inputId).addEventListener("change", (e) => {
-    const archivo = e.target.files[0];
-    if (!archivo) return;
+  $(inputId).addEventListener("change", async (e) => {
+    const original = e.target.files[0];
+    if (!original) return;
+    const archivo = await normalizarOrientacion(original);
     if (guardarEn === "perfil") archivoPerfil = archivo; else archivoDni = archivo;
     const url = URL.createObjectURL(archivo);
     $(previewId).src = url;
