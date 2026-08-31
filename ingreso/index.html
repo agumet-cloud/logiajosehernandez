@@ -91,6 +91,11 @@ label.btn-file:hover { background:var(--gold-soft); }
 .pantalla-final { text-align:center; padding:60px 0; }
 .pantalla-final .simbolo { font-size:2.4rem; color:var(--gold); margin-bottom:18px; }
 
+.aviso-borrador {
+  border:1px solid var(--gold); background:rgba(201,168,93,.08); border-radius:8px;
+  padding:18px 20px; margin-bottom:24px;
+}
+
 #sitio_web { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
 </style>
 </head>
@@ -115,6 +120,16 @@ label.btn-file:hover { background:var(--gold-soft); }
     Una vez enviada, la solicitud queda registrada y un miembro de la Logia se va a poner en contacto con vos
     para coordinar los próximos pasos.
   </p>
+
+  <div id="aviso-borrador" class="aviso-borrador" style="display:none;">
+    <p style="margin:0 0 4px;">Encontramos una solicitud que empezaste a completar y no llegaste a enviar.</p>
+    <p class="muted" style="margin:0;">Vas a tener que volver a sacar las fotos y a firmar, pero el resto de los datos ya están guardados.</p>
+    <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+      <button type="button" class="primary" id="btn-continuar-borrador" style="width:auto; padding:12px 24px;">Continuar donde la dejé</button>
+      <button type="button" class="ghost" id="btn-descartar-borrador" style="width:auto;">Empezar de nuevo</button>
+    </div>
+  </div>
+
   <button class="primary" id="btn-empezar" style="width:auto; padding:14px 32px;">Empezar</button>
 </div>
 
@@ -348,7 +363,7 @@ const BUCKET_MEDIA = "admision_media";
 function $(id) { return document.getElementById(id); }
 
 // ---- estado del wizard ----
-const solicitudId = crypto.randomUUID();
+let solicitudId = crypto.randomUUID();
 let pasoActual = 1;
 const TOTAL_PASOS = 7;
 const TITULOS_PASO = {
@@ -368,6 +383,97 @@ $("btn-empezar").addEventListener("click", () => {
   $("f-firma-fecha").value = hoyISO();
   window.scrollTo(0, 0);
 });
+
+// ---- borrador (persistencia local) ----
+// Si el envío falla, o la persona cierra la pestaña antes de terminar, no
+// queremos que tenga que volver a escribir todo de nuevo. Guardamos
+// automáticamente los campos de texto en el navegador (no las fotos ni la
+// firma: no entran cómodas en localStorage y de todas formas hay que
+// volver a sacarlas/firmar) y, si vuelve a entrar, le ofrecemos continuar
+// donde había quedado.
+const BORRADOR_KEY = "ingreso_borrador_v1";
+const CAMPOS_TEXTO_BORRADOR = [
+  "f-apellido", "f-nombre", "f-domicilio", "f-ciudad", "f-provincia", "f-fecha-nacimiento",
+  "f-telefono", "f-email", "f-dni", "f-pais-nacimiento", "f-ciudad-nacimiento", "f-anios-residencia",
+  "f-nombre-padre", "f-nombre-madre", "f-estado-civil", "f-nombre-conyuge", "f-fecha-conyuge",
+  "f-nivel-estudios", "f-carrera", "f-titulo", "f-profesion", "f-rubro", "f-empresa",
+  "f-afiliaciones", "f-corrientes", "f-familiares-masones",
+  "f-firma-aclaracion", "f-firma-lugar", "f-firma-fecha",
+];
+const CAMPOS_CHECK_BORRADOR = ["f-nacido-exterior", "f-acepta-declaracion"];
+
+function guardarBorrador() {
+  try {
+    const campos = {};
+    CAMPOS_TEXTO_BORRADOR.forEach((id) => { campos[id] = $(id).value; });
+    const checks = {};
+    CAMPOS_CHECK_BORRADOR.forEach((id) => { checks[id] = $(id).checked; });
+    const datos = { id: solicitudId, paso: pasoActual, campos, checks, hijos };
+    localStorage.setItem(BORRADOR_KEY, JSON.stringify(datos));
+  } catch (e) {
+    console.error("No se pudo guardar el borrador:", e);
+  }
+}
+
+let temporizadorGuardadoBorrador = null;
+function guardarBorradorDebounced() {
+  clearTimeout(temporizadorGuardadoBorrador);
+  temporizadorGuardadoBorrador = setTimeout(guardarBorrador, 400);
+}
+
+function cargarBorrador() {
+  try {
+    const crudo = localStorage.getItem(BORRADOR_KEY);
+    return crudo ? JSON.parse(crudo) : null;
+  } catch (e) {
+    console.error("No se pudo leer el borrador guardado:", e);
+    return null;
+  }
+}
+
+function borrarBorrador() {
+  try { localStorage.removeItem(BORRADOR_KEY); } catch (e) { /* nada que hacer */ }
+}
+
+function restaurarBorrador(datos) {
+  if (datos.id) solicitudId = datos.id;
+  CAMPOS_TEXTO_BORRADOR.forEach((id) => {
+    if (datos.campos && datos.campos[id] !== undefined) $(id).value = datos.campos[id];
+  });
+  CAMPOS_CHECK_BORRADOR.forEach((id) => {
+    if (datos.checks && datos.checks[id] !== undefined) $(id).checked = datos.checks[id];
+  });
+  // disparamos "change" para que se muestren/oculten los bloques
+  // condicionales (nacido en el exterior, cónyuge) según lo restaurado
+  $("f-nacido-exterior").dispatchEvent(new Event("change"));
+  $("f-estado-civil").dispatchEvent(new Event("change"));
+
+  hijos = Array.isArray(datos.hijos) ? datos.hijos : [];
+  renderHijos();
+  actualizarBotonHijo();
+
+  $("vista-intro").style.display = "none";
+  $("vista-form").style.display = "block";
+  pasoActual = datos.paso >= 1 && datos.paso <= TOTAL_PASOS ? datos.paso : 1;
+  mostrarPaso(pasoActual);
+}
+
+const borradorGuardado = cargarBorrador();
+if (borradorGuardado) {
+  $("aviso-borrador").style.display = "block";
+}
+$("btn-continuar-borrador").addEventListener("click", () => {
+  if (borradorGuardado) restaurarBorrador(borradorGuardado);
+});
+$("btn-descartar-borrador").addEventListener("click", () => {
+  borrarBorrador();
+  $("aviso-borrador").style.display = "none";
+});
+
+// autoguardado: cualquier cambio en el formulario dispara un guardado
+// (con un pequeño debounce para no escribir en cada tecla)
+$("vista-form").addEventListener("input", guardarBorradorDebounced);
+$("vista-form").addEventListener("change", guardarBorradorDebounced);
 
 function hoyISO() {
   const d = new Date();
@@ -404,6 +510,7 @@ function renderHijos() {
       hijos.splice(Number(e.target.dataset.idx), 1);
       renderHijos();
       actualizarBotonHijo();
+      guardarBorrador();
     });
   });
 }
@@ -416,6 +523,7 @@ $("btn-agregar-hijo").addEventListener("click", () => {
   hijos.push({ nombre: "", edad: null });
   renderHijos();
   actualizarBotonHijo();
+  guardarBorrador();
 });
 
 function escAttr(s) {
@@ -549,10 +657,12 @@ $("btn-siguiente").addEventListener("click", () => {
   if (error) { alert(error); return; }
   pasoActual++;
   mostrarPaso(pasoActual);
+  guardarBorrador();
 });
 $("btn-atras").addEventListener("click", () => {
   pasoActual--;
   mostrarPaso(pasoActual);
+  guardarBorrador();
 });
 
 // ---- resumen final ----
@@ -634,16 +744,21 @@ $("btn-enviar").addEventListener("click", async () => {
   try {
     const carpeta = solicitudId;
 
+    // upsert:true es importante acá: si un envío anterior falló después de
+    // subir algún archivo pero antes de terminar, el reintento usa el mismo
+    // solicitudId (mismas rutas) — sin upsert, la subida chocaría con el
+    // archivo que ya había quedado del intento anterior y el reintento
+    // fallaría siempre, en loop, sin poder avanzar nunca.
     const [subidaPerfil, subidaDni, subidaFirma] = await Promise.all([
-      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/perfil.jpg`, archivoPerfil, { contentType: archivoPerfil.type || "image/jpeg" }),
-      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/dni.jpg`, archivoDni, { contentType: archivoDni.type || "image/jpeg" }),
+      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/perfil.jpg`, archivoPerfil, { contentType: archivoPerfil.type || "image/jpeg", upsert: true }),
+      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/dni.jpg`, archivoDni, { contentType: archivoDni.type || "image/jpeg", upsert: true }),
       new Promise((resolve) => $("firma-canvas").toBlob(resolve, "image/png")).then(blob =>
-        db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/firma.png`, blob, { contentType: "image/png" })
+        db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/firma.png`, blob, { contentType: "image/png", upsert: true })
       ),
     ]);
-    if (subidaPerfil.error) throw subidaPerfil.error;
-    if (subidaDni.error) throw subidaDni.error;
-    if (subidaFirma.error) throw subidaFirma.error;
+    if (subidaPerfil.error) throw new Error("No se pudo subir la foto de perfil: " + subidaPerfil.error.message);
+    if (subidaDni.error) throw new Error("No se pudo subir la foto del DNI: " + subidaDni.error.message);
+    if (subidaFirma.error) throw new Error("No se pudo subir la firma: " + subidaFirma.error.message);
 
     const fila = {
       id: solicitudId,
@@ -700,6 +815,7 @@ $("btn-enviar").addEventListener("click", async () => {
 });
 
 function mostrarPantallaFinal() {
+  borrarBorrador();
   $("vista-form").style.display = "none";
   $("vista-final").style.display = "block";
   window.scrollTo(0, 0);
