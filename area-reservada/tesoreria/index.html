@@ -72,6 +72,24 @@
   .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
   @media (max-width:640px) { .grid2, .grid3 { grid-template-columns:1fr; } }
 
+  /* shared/style.css define el estilo de input y select, pero no el de
+     textarea (mismo detalle que en Boletines) — sin esto usa el estilo
+     por defecto del navegador: caja blanca, chica y con fuente monoespaciada. */
+  textarea {
+    width:100%;
+    background:var(--green-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--cream);
+    padding:12px 14px;
+    font-family:Inter,sans-serif;
+    font-size:.95rem;
+    outline:none;
+    resize:vertical;
+    min-height:70px;
+  }
+  textarea:focus { border-color:var(--gold); }
+
   .card-header {
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     padding:18px 18px 0; flex-wrap:wrap;
