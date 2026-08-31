@@ -304,7 +304,7 @@ async function cargarMaestros() {
   if (!maestroGrado) return;
 
   const { data: hermanosData, error: errHerm } = await db
-    .from("hermanos").select("id,nombre_completo,grado_id,activo")
+    .from("hermanos").select("id,nombre_completo,grado_id,activo,firma_url")
     .eq("activo", true).eq("grado_id", maestroGrado.id)
     .order("nombre_completo");
   if (errHerm) { console.error(errHerm); return; }
@@ -374,6 +374,8 @@ function renderListadoSecretario() {
         ${s.estado === "proponente_designado" && s.proponente_id === miHermanoId ? `<button type="button" class="primary" style="width:auto;" data-id="${s.id}" id="btn-aplomar-sec-${s.id}">Marcar aplomada</button>` : ""}
         ${s.estado === "aplomada" ? `<button type="button" class="ghost btn-aprobar" data-id="${s.id}">Aprobar</button>` : ""}
         ${s.estado !== "descartada" ? `<button type="button" class="ghost btn-descartar" data-id="${s.id}" style="color:var(--danger); border-color:var(--danger);">Descartar</button>` : ""}
+        ${s.estado === "descartada" ? `<button type="button" class="ghost btn-revertir" data-id="${s.id}">Sacar del Libro Negro</button>` : ""}
+        ${s.estado === "sin_leer" || s.estado === "descartada" ? `<button type="button" class="ghost btn-eliminar" data-id="${s.id}" style="color:var(--danger); border-color:var(--danger);">Eliminar definitivamente</button>` : ""}
       </div>
     </div>
   `).join("");
@@ -383,6 +385,8 @@ function renderListadoSecretario() {
   cont.querySelectorAll(".btn-designar").forEach((b) => b.addEventListener("click", () => abrirModalProponente(b.dataset.id)));
   cont.querySelectorAll(".btn-aprobar").forEach((b) => b.addEventListener("click", () => abrirModalAprobar(b.dataset.id)));
   cont.querySelectorAll(".btn-descartar").forEach((b) => b.addEventListener("click", () => abrirModalDescartar(b.dataset.id)));
+  cont.querySelectorAll(".btn-revertir").forEach((b) => b.addEventListener("click", () => revertirDescarte(b.dataset.id)));
+  cont.querySelectorAll(".btn-eliminar").forEach((b) => b.addEventListener("click", () => eliminarSolicitud(b.dataset.id)));
   // caso especial: un Secretario/VM que se autodesignó proponente ve la
   // fila acá (en la vista de Secretaría), no en la vista de proponente
   // aparte, así que el botón de aplomar tiene que estar wireado acá también.
@@ -597,6 +601,48 @@ async function marcarAplomada(id) {
   } catch (e) {
     console.error(e);
     toast("No se pudo marcar como Aplomada.", true);
+  }
+}
+
+// ============================================================
+// ACCIÓN: sacar del Libro Negro (revertir descarte)
+// ============================================================
+// No queda registro de en qué estado estaba la solicitud antes de
+// descartarla (admision_descartar lo pisa), así que revertir siempre la
+// manda de nuevo a "Sin leer" — se vuelve a triar desde el principio.
+// Si ya tenía un proponente designado, ese dato no se toca ni se pierde.
+async function revertirDescarte(id) {
+  if (!confirm("¿Sacar esta solicitud del Libro Negro? Vuelve a \"Sin leer\" para triarla de nuevo.")) return;
+  try {
+    const { error } = await db.rpc("admision_revertir_descarte", { p_solicitud_id: id });
+    if (error) throw error;
+    toast("Solicitud sacada del Libro Negro.");
+    await cargarListado();
+  } catch (e) {
+    console.error(e);
+    toast("No se pudo sacar la solicitud del Libro Negro.", true);
+  }
+}
+
+// ============================================================
+// ACCIÓN: eliminar definitivamente
+// ============================================================
+// Solo para solicitudes "Sin leer" o del Libro Negro (nunca una que ya
+// tuvo un proponente trabajando o que fue aprobada — eso queda como
+// registro). Borra también las fotos/firma del candidato en el bucket,
+// no solo la fila.
+async function eliminarSolicitud(id) {
+  const s = solicitudesCache.find((x) => x.id === id);
+  const nombre = s ? nombreCompleto(s) : "esta solicitud";
+  if (!confirm(`¿Eliminar definitivamente la solicitud de ${nombre}? Esto borra también sus fotos y firma. No se puede deshacer.`)) return;
+  try {
+    const { error } = await db.rpc("admision_eliminar", { p_solicitud_id: id });
+    if (error) throw error;
+    toast("Solicitud eliminada.");
+    await cargarListado();
+  } catch (e) {
+    console.error(e);
+    toast("No se pudo eliminar la solicitud.", true);
   }
 }
 
