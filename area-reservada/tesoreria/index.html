@@ -1190,29 +1190,45 @@ function limpiarSubformulario(tipo) {
 
 $("btn-cancelar-form").addEventListener("click", () => limpiarSubformulario(tipoActual));
 
-// Convierte una URL (por ej. la firmada de Storage) a data URI, para poder
-// incrustarla como <img> sin depender de CORS al momento de capturar con
-// html2canvas.
-async function urlToDataUri(url) {
-  const resp = await fetch(url);
-  const blob = await resp.blob();
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
 // Firma digital (imagen) de quien está emitiendo el recibo ahora mismo,
-// cargada en su legajo. Si no tiene una cargada, o falla la descarga, el
-// recibo sigue generándose igual, solo con el nombre y cargo impresos.
+// cargada en su legajo. La firma se guarda en Legajos con fondo blanco
+// sólido (canvas o foto), lo cual se nota como un recuadro sobre el papel
+// color hueso del recibo (Legajos y Actas no lo notan porque ahí el fondo
+// donde se ve la firma también es blanco). Para que quede prolija acá, se
+// vuelve a dibujar en un canvas convirtiendo blanco -> transparente y
+// negro -> opaco (con grises intermedios semitransparentes, para que el
+// borde del trazo no quede recortado en dientes de sierra), y se devuelve
+// como PNG con canal alfa. Si no tiene una firma cargada, o falla la
+// descarga, el recibo se genera igual, solo con el nombre y cargo impresos.
 async function firmaEmisorDataUri() {
   if (!miFirmaUrl) return null;
   try {
     const { data, error } = await db.storage.from(BUCKET_FIRMAS).createSignedUrl(miFirmaUrl, 300);
     if (error || !data) return null;
-    return await urlToDataUri(data.signedUrl);
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = data.signedUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    const cuadro = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const px = cuadro.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const brillo = (px[i] + px[i + 1] + px[i + 2]) / 3;
+      px[i + 3] = Math.max(0, 255 - brillo); // blanco -> transparente, negro -> opaco
+    }
+    ctx.putImageData(cuadro, 0, 0);
+
+    return canvas.toDataURL("image/png");
   } catch (e) {
     console.error(e);
     return null;
