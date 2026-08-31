@@ -636,6 +636,20 @@ async function eliminarSolicitud(id) {
   const nombre = s ? nombreCompleto(s) : "esta solicitud";
   if (!confirm(`¿Eliminar definitivamente la solicitud de ${nombre}? Esto borra también sus fotos y firma. No se puede deshacer.`)) return;
   try {
+    // Supabase no deja borrar filas de storage.objects con un DELETE de SQL
+    // directo (ni siquiera desde una función SECURITY DEFINER) — hay que
+    // pasar por la Storage API, así que los archivos se borran acá, del
+    // lado del cliente, antes de borrar la fila. Si esto falla (por
+    // ejemplo la primera vez, antes de correr la política de DELETE
+    // nueva), no bloquea el borrado de la solicitud: solo quedarían
+    // archivos sueltos en el bucket, que no es grave.
+    if (s) {
+      const rutas = [s.foto_perfil_url, s.foto_dni_url, s.firma_candidato_url].filter(Boolean);
+      if (rutas.length) {
+        const { error: errStorage } = await db.storage.from(BUCKET_MEDIA).remove(rutas);
+        if (errStorage) console.error("No se pudieron borrar los archivos del candidato:", errStorage);
+      }
+    }
     const { error } = await db.rpc("admision_eliminar", { p_solicitud_id: id });
     if (error) throw error;
     toast("Solicitud eliminada.");
