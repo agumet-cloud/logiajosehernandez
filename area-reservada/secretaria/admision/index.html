@@ -371,6 +371,7 @@ function renderListadoSecretario() {
         <button type="button" class="ghost btn-ver" data-id="${s.id}">Ver</button>
         <button type="button" class="ghost btn-pdf" data-id="${s.id}">PDF</button>
         ${s.estado === "sin_leer" ? `<button type="button" class="ghost btn-designar" data-id="${s.id}">Designar proponente</button>` : ""}
+        ${s.estado === "proponente_designado" && s.proponente_id === miHermanoId ? `<button type="button" class="primary" style="width:auto;" data-id="${s.id}" id="btn-aplomar-sec-${s.id}">Marcar aplomada</button>` : ""}
         ${s.estado === "aplomada" ? `<button type="button" class="ghost btn-aprobar" data-id="${s.id}">Aprobar</button>` : ""}
         ${s.estado !== "descartada" ? `<button type="button" class="ghost btn-descartar" data-id="${s.id}" style="color:var(--danger); border-color:var(--danger);">Descartar</button>` : ""}
       </div>
@@ -382,6 +383,13 @@ function renderListadoSecretario() {
   cont.querySelectorAll(".btn-designar").forEach((b) => b.addEventListener("click", () => abrirModalProponente(b.dataset.id)));
   cont.querySelectorAll(".btn-aprobar").forEach((b) => b.addEventListener("click", () => abrirModalAprobar(b.dataset.id)));
   cont.querySelectorAll(".btn-descartar").forEach((b) => b.addEventListener("click", () => abrirModalDescartar(b.dataset.id)));
+  // caso especial: un Secretario/VM que se autodesignó proponente ve la
+  // fila acá (en la vista de Secretaría), no en la vista de proponente
+  // aparte, así que el botón de aplomar tiene que estar wireado acá también.
+  filtradas.filter((s) => s.estado === "proponente_designado" && s.proponente_id === miHermanoId).forEach((s) => {
+    const btn = $(`btn-aplomar-sec-${s.id}`);
+    if (btn) btn.addEventListener("click", () => marcarAplomada(s.id));
+  });
 }
 
 function renderListadoProponente(lista) {
@@ -759,6 +767,35 @@ async function bytesDesdeUrl(url) {
   return new Uint8Array(await resp.arrayBuffer());
 }
 
+// Las fotos sacadas con la cámara del celular (selfie, DNI) suelen traer
+// un tag EXIF de rotación en vez de los píxeles ya derechos. pdf-lib
+// dibuja los píxeles tal cual, sin mirar ese tag, así que la imagen sale
+// "acostada" en el PDF aunque se vea bien en cualquier <img> del sitio
+// (los navegadores sí respetan el EXIF ahí). Se corrige acá antes de
+// incrustarla: createImageBitmap con imageOrientation:"from-image" la
+// redibuja ya derecha en un canvas. Sirve tanto para fotos nuevas (que
+// ya se suben derechas desde ingreso/index.html) como para las que se
+// hayan subido antes de ese arreglo.
+async function bytesImagenDerecha(url) {
+  if (!url) return null;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0);
+    const outBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!outBlob) return bytesDesdeUrl(url);
+    return new Uint8Array(await outBlob.arrayBuffer());
+  } catch (e) {
+    console.error("No se pudo enderezar la imagen, se usa tal cual:", e);
+    return bytesDesdeUrl(url);
+  }
+}
+
 // Detecta PNG vs JPG por los primeros bytes y usa el embed correcto de
 // pdf-lib (no alcanza con mirar la extensión: la firma dibujada a mano
 // siempre es PNG, pero una firma subida como archivo o una foto sacada
@@ -909,7 +946,7 @@ async function generarPdfF117(s) {
   }
   async function imagenDesdeUrl(clave, url) {
     const celda = CELDAS[clave];
-    const bytes = await bytesDesdeUrl(url);
+    const bytes = await bytesImagenDerecha(url);
     if (!bytes) return;
     const img = await embeberImagenAuto(pdfDoc, bytes);
     if (!img) return;
@@ -999,7 +1036,7 @@ async function generarPdfF117(s) {
 
   // ---- página 5: DNI adjunto (el formulario no tiene casillero para
   // esto — la nota al pie de la página 3 pide adjuntarlo aparte) ----
-  const dniBytes = await bytesDesdeUrl(await signedUrlMedia(s.foto_dni_url));
+  const dniBytes = await bytesImagenDerecha(await signedUrlMedia(s.foto_dni_url));
   if (dniBytes) {
     const imgDni = await embeberImagenAuto(pdfDoc, dniBytes);
     if (imgDni) {
