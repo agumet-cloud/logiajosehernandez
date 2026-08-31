@@ -836,18 +836,42 @@ async function bytesDesdeUrl(url) {
 // redibuja ya derecha en un canvas. Sirve tanto para fotos nuevas (que
 // ya se suben derechas desde ingreso/index.html) como para las que se
 // hayan subido antes de ese arreglo.
-async function bytesImagenDerecha(url) {
+//
+// esFoto:true (selfie y foto de DNI) hace además dos cosas para que el
+// PDF no pese decenas de MB: 1) reduce la imagen a un máximo de 1600px
+// de lado, de sobra para el tamaño en que se ve impresa (los casilleros
+// del F.117 son chicos, y la página del DNI es como mucho una hoja A4) —
+// las fotos de cámara de celular suelen venir en 3000-4000px, muchas
+// veces más resolución de la que hace falta; 2) la vuelve a comprimir
+// como JPEG (calidad 0.85) en vez de PNG. Antes este código siempre
+// generaba PNG, que es sin pérdida — para una foto (con el "ruido" típico
+// de una cámara) eso pesa muchas veces más que el JPEG original que ya
+// se había subido, y era la causa real de que el PDF exportado pesara
+// ~85 MB. Las firmas (esFoto:false, el valor por defecto) seguimos
+// sacándolas en PNG porque son imágenes chicas tipo trazo, con fondo
+// transparente que hay que conservar — ahí el PNG no pesa nada.
+async function bytesImagenDerecha(url, opts = {}) {
   if (!url) return null;
+  const { esFoto = false, maxDim = 1600 } = opts;
   try {
     const resp = await fetch(url);
     if (!resp.ok) return null;
     const blob = await resp.blob();
     const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+    let w = bitmap.width;
+    let h = bitmap.height;
+    if (esFoto && Math.max(w, h) > maxDim) {
+      const escala = maxDim / Math.max(w, h);
+      w = Math.round(w * escala);
+      h = Math.round(h * escala);
+    }
     const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    canvas.getContext("2d").drawImage(bitmap, 0, 0);
-    const outBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+    const outBlob = esFoto
+      ? await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85))
+      : await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     if (!outBlob) return bytesDesdeUrl(url);
     return new Uint8Array(await outBlob.arrayBuffer());
   } catch (e) {
@@ -1004,9 +1028,9 @@ async function generarPdfF117(s) {
     texto(`${prefijo}Mes`, mes, { align: "center", fontSize: 8.5 });
     texto(`${prefijo}Anio`, anio, { align: "center", fontSize: 8.5 });
   }
-  async function imagenDesdeUrl(clave, url) {
+  async function imagenDesdeUrl(clave, url, opts) {
     const celda = CELDAS[clave];
-    const bytes = await bytesImagenDerecha(url);
+    const bytes = await bytesImagenDerecha(url, opts);
     if (!bytes) return;
     const img = await embeberImagenAuto(pdfDoc, bytes);
     if (!img) return;
@@ -1055,7 +1079,7 @@ async function generarPdfF117(s) {
   texto("familiaresMasones", s.familiares_masones);
 
   // ---- foto, firma y DNI del candidato ----
-  await imagenDesdeUrl("fotoPerfil", await signedUrlMedia(s.foto_perfil_url));
+  await imagenDesdeUrl("fotoPerfil", await signedUrlMedia(s.foto_perfil_url), { esFoto: true });
   await imagenDesdeUrl("firmaCandidato", await signedUrlMedia(s.firma_candidato_url));
   texto("aclaracion", s.firma_aclaracion, { fontSize: 8 });
   texto("lugarFecha", s.firma_lugar && s.firma_fecha ? `${s.firma_lugar}, ${fmtFechaCorta(s.firma_fecha)}` : "", { fontSize: 8 });
@@ -1096,7 +1120,7 @@ async function generarPdfF117(s) {
 
   // ---- página 5: DNI adjunto (el formulario no tiene casillero para
   // esto — la nota al pie de la página 3 pide adjuntarlo aparte) ----
-  const dniBytes = await bytesImagenDerecha(await signedUrlMedia(s.foto_dni_url));
+  const dniBytes = await bytesImagenDerecha(await signedUrlMedia(s.foto_dni_url), { esFoto: true });
   if (dniBytes) {
     const imgDni = await embeberImagenAuto(pdfDoc, dniBytes);
     if (imgDni) {
