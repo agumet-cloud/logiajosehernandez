@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071b14">
+<title>Quiero Ingresar · Resp∴ Log∴ José Hernández N° 75</title>
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+header.top {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:20px 24px; border-bottom:1px solid var(--line);
+}
+header.top a.brand { text-decoration:none; color:var(--gold-soft); font-family:'Cormorant Garamond',serif; font-size:1.2rem; font-weight:600; }
+main { max-width:720px; margin:0 auto; padding:36px 20px 80px; }
+
+.progreso { margin-bottom:28px; }
+.progreso-barra { height:4px; background:var(--green-2); border-radius:2px; overflow:hidden; }
+.progreso-relleno { height:100%; background:var(--gold); transition:.3s ease; }
+.progreso-texto { display:flex; justify-content:space-between; margin-top:8px; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+
+.paso { display:none; }
+.paso.activo { display:block; }
+.paso h2 { font-size:1.5rem; margin:0 0 6px; }
+.paso .paso-desc { color:var(--muted); font-size:.88rem; margin:0 0 26px; }
+
+.campo { margin-bottom:18px; }
+.fila-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.fila-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+@media (max-width:640px) { .fila-2, .fila-3 { grid-template-columns:1fr; } }
+
+textarea {
+  width:100%; background:var(--green-2); border:1px solid var(--line); border-radius:6px;
+  color:var(--cream); padding:12px 14px; font-family:Inter,sans-serif; font-size:.95rem;
+  outline:none; resize:vertical; min-height:90px;
+}
+textarea:focus { border-color:var(--gold); }
+
+select {
+  width:100%; background-color:var(--green-2); border:1px solid var(--line); border-radius:6px;
+  color:var(--cream); padding:12px 36px 12px 14px; font-family:Inter,sans-serif; font-size:.95rem;
+  outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%23c9a85d' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 14px center;
+}
+select:focus { border-color:var(--gold); }
+select option { background:var(--green-1); color:var(--cream); }
+
+.check-line { display:flex; align-items:flex-start; gap:10px; }
+.check-line input[type=checkbox] { width:18px; height:18px; margin-top:2px; accent-color:var(--gold); flex-shrink:0; }
+.check-line label { margin:0; color:var(--cream); font-size:.9rem; line-height:1.5; }
+
+.hijo-fila { display:grid; grid-template-columns:1fr 110px 36px; gap:10px; margin-bottom:10px; align-items:center; }
+.btn-quitar { background:none; border:1px solid var(--line); color:var(--danger); border-radius:6px; width:36px; height:44px; cursor:pointer; }
+.btn-quitar:hover { border-color:var(--danger); }
+
+.declaracion-texto {
+  background:var(--green-2); border:1px solid var(--line); border-radius:8px;
+  padding:18px 20px; font-size:.87rem; color:var(--muted); line-height:1.7; margin-bottom:20px;
+}
+.declaracion-texto p { margin:0 0 10px; }
+.declaracion-texto p:last-child { margin-bottom:0; }
+
+.captura-box {
+  border:1px dashed var(--line); border-radius:8px; padding:20px; text-align:center; margin-bottom:8px;
+}
+.captura-box img { max-width:100%; max-height:260px; border-radius:6px; display:block; margin:0 auto 14px; }
+.captura-box .placeholder { color:var(--muted); font-size:.85rem; margin-bottom:14px; }
+input[type=file] { display:none; }
+label.btn-file {
+  display:inline-flex; align-items:center; gap:8px; background:var(--gold); color:var(--green-0);
+  border-radius:6px; padding:11px 20px; font-size:.85rem; font-weight:500; cursor:pointer; transition:.2s;
+}
+label.btn-file:hover { background:var(--gold-soft); }
+
+#firma-canvas {
+  width:100%; height:180px; background:#fff; border-radius:6px; touch-action:none; cursor:crosshair; display:block;
+}
+.firma-wrap { border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:8px; }
+
+.resumen-bloque { margin-bottom:22px; }
+.resumen-bloque h3 { font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-soft); margin:0 0 8px; font-family:Inter,sans-serif; font-weight:500; }
+.resumen-fila { display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid var(--line); font-size:.86rem; }
+.resumen-fila span:first-child { color:var(--muted); }
+.resumen-fila span:last-child { text-align:right; }
+
+.nav-pasos { display:flex; justify-content:space-between; gap:12px; margin-top:32px; }
+.nav-pasos button { width:auto; min-width:120px; }
+.nav-pasos .espaciador { flex:1; }
+
+.pantalla-final { text-align:center; padding:60px 0; }
+.pantalla-final .simbolo { font-size:2.4rem; color:var(--gold); margin-bottom:18px; }
+
+#sitio_web { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="../index.html">José Hernández · 75</a>
+  <a class="muted" style="font-size:.8rem; text-decoration:none;" href="../index.html">← Volver al sitio</a>
+</header>
+
+<main>
+
+<div id="vista-intro">
+  <div class="kicker">Solicitud de admisión</div>
+  <h1 style="font-size:2rem; margin:8px 0 14px;">Quiero Ingresar</h1>
+  <p class="muted" style="margin-bottom:28px;">
+    Este formulario es el primer paso para solicitar tu ingreso a la Resp∴ Log∴ José Hernández N° 75.
+    Te va a llevar unos minutos: vamos a pedirte tus datos personales, información familiar y profesional,
+    una foto tuya, una foto de tu DNI y tu firma. Podés hacerlo desde el celular.
+  </p>
+  <p class="muted" style="margin-bottom:28px;">
+    Una vez enviada, la solicitud queda registrada y un miembro de la Logia se va a poner en contacto con vos
+    para coordinar los próximos pasos.
+  </p>
+  <button class="primary" id="btn-empezar" style="width:auto; padding:14px 32px;">Empezar</button>
+</div>
+
+<form id="vista-form" style="display:none;" autocomplete="off">
+
+  <div class="progreso">
+    <div class="progreso-barra"><div class="progreso-relleno" id="progreso-relleno"></div></div>
+    <div class="progreso-texto"><span id="progreso-paso-actual">Paso 1 de 7</span><span id="progreso-titulo-actual">Datos personales</span></div>
+  </div>
+
+  <!-- honeypot -->
+  <input type="text" id="sitio_web" name="sitio_web" tabindex="-1" autocomplete="off">
+
+  <!-- PASO 1: datos personales -->
+  <section class="paso activo" data-paso="1">
+    <h2>Datos personales</h2>
+    <p class="paso-desc">Completá tus datos tal como figuran en tu documento.</p>
+
+    <div class="fila-2">
+      <div class="campo"><label>Apellido/s *</label><input type="text" id="f-apellido" required></div>
+      <div class="campo"><label>Nombre/s *</label><input type="text" id="f-nombre" required></div>
+    </div>
+    <div class="campo"><label>Domicilio</label><input type="text" id="f-domicilio" placeholder="Calle, número, piso/depto"></div>
+    <div class="fila-3">
+      <div class="campo"><label>Ciudad/localidad</label><input type="text" id="f-ciudad"></div>
+      <div class="campo"><label>Provincia</label><input type="text" id="f-provincia"></div>
+      <div class="campo"><label>Fecha de nacimiento</label><input type="date" id="f-fecha-nacimiento"></div>
+    </div>
+    <div class="fila-2">
+      <div class="campo"><label>Teléfono celular</label><input type="tel" id="f-telefono"></div>
+      <div class="campo"><label>Email</label><input type="email" id="f-email"></div>
+    </div>
+    <div class="campo"><label>DNI *</label><input type="text" id="f-dni" inputmode="numeric" placeholder="Sin puntos" required></div>
+
+    <div class="campo check-line" style="margin-top:22px;">
+      <input type="checkbox" id="f-nacido-exterior">
+      <label for="f-nacido-exterior">Nací fuera de Argentina</label>
+    </div>
+    <div id="box-exterior" style="display:none;">
+      <div class="fila-3">
+        <div class="campo"><label>País de nacimiento</label><input type="text" id="f-pais-nacimiento"></div>
+        <div class="campo"><label>Ciudad de nacimiento</label><input type="text" id="f-ciudad-nacimiento"></div>
+        <div class="campo"><label>Años de residencia en Argentina</label><input type="number" id="f-anios-residencia" min="0"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PASO 2: familia -->
+  <section class="paso" data-paso="2">
+    <h2>Información familiar</h2>
+    <p class="paso-desc">Datos de tus padres, estado civil y, si corresponde, tu familia.</p>
+
+    <div class="fila-2">
+      <div class="campo"><label>Nombre completo del padre</label><input type="text" id="f-nombre-padre"></div>
+      <div class="campo"><label>Apellido y nombre de la madre</label><input type="text" id="f-nombre-madre"></div>
+    </div>
+    <div class="campo">
+      <label>Estado civil</label>
+      <select id="f-estado-civil">
+        <option value="">— Elegir —</option>
+        <option>Soltero/a</option>
+        <option>Casado/a</option>
+        <option>Divorciado/a</option>
+        <option>Viudo/a</option>
+        <option>Unión convivencial</option>
+      </select>
+    </div>
+    <div id="box-conyuge" style="display:none;">
+      <div class="fila-2">
+        <div class="campo"><label>Apellido y nombre del cónyuge</label><input type="text" id="f-nombre-conyuge"></div>
+        <div class="campo"><label>Fecha de nacimiento del cónyuge</label><input type="date" id="f-fecha-conyuge"></div>
+      </div>
+    </div>
+
+    <div class="campo" style="margin-top:24px;">
+      <label>Hijos (hasta 6)</label>
+      <div id="lista-hijos"></div>
+      <button type="button" class="ghost" id="btn-agregar-hijo" style="width:auto;">+ Agregar hijo/a</button>
+    </div>
+  </section>
+
+  <!-- PASO 3: formación y profesión -->
+  <section class="paso" data-paso="3">
+    <h2>Formación y profesión</h2>
+    <p class="paso-desc">Tu recorrido académico y tu actividad actual.</p>
+
+    <div class="campo">
+      <label>Nivel de estudios alcanzado</label>
+      <select id="f-nivel-estudios">
+        <option value="">— Elegir —</option>
+        <option>Primario</option>
+        <option>Secundario</option>
+        <option>Terciario</option>
+        <option>Universitario</option>
+        <option>Posgrado</option>
+        <option>Otro</option>
+      </select>
+    </div>
+    <div class="fila-2">
+      <div class="campo"><label>Carrera / estudios cursados</label><input type="text" id="f-carrera"></div>
+      <div class="campo"><label>Título obtenido</label><input type="text" id="f-titulo"></div>
+    </div>
+    <div class="campo"><label>Profesión / ocupación / puesto</label><input type="text" id="f-profesion"></div>
+    <div class="fila-2">
+      <div class="campo"><label>Rubro</label><input type="text" id="f-rubro"></div>
+      <div class="campo"><label>Empresa contratante</label><input type="text" id="f-empresa"></div>
+    </div>
+  </section>
+
+  <!-- PASO 4: preguntas abiertas -->
+  <section class="paso" data-paso="4">
+    <h2>Sobre vos</h2>
+    <p class="paso-desc">Tres preguntas para conocerte un poco más. Podés dejarlas en blanco si no aplican.</p>
+
+    <div class="campo">
+      <label>¿Sos miembro o afiliado de alguna asociación religiosa, cultural o benéfica?</label>
+      <textarea id="f-afiliaciones"></textarea>
+    </div>
+    <div class="campo">
+      <label>¿Qué concepciones teóricas o corrientes de pensamiento considerás valiosas? (no incluye afiliación político-partidaria)</label>
+      <textarea id="f-corrientes"></textarea>
+    </div>
+    <div class="campo">
+      <label>¿Algún familiar perteneció o pertenece a la masonería?</label>
+      <textarea id="f-familiares-masones"></textarea>
+    </div>
+  </section>
+
+  <!-- PASO 5: declaración jurada -->
+  <section class="paso" data-paso="5">
+    <h2>Declaración jurada</h2>
+    <p class="paso-desc">Leé con atención antes de continuar.</p>
+
+    <div class="declaracion-texto">
+      <p>Declaro bajo juramento que todos los datos consignados en esta solicitud son verdaderos y completos.</p>
+      <p>Declaro conocer, en términos generales, la naturaleza y los principios de la Masonería, y que mi interés en solicitar el ingreso es genuino y voluntario.</p>
+      <p>Declaro no poseer antecedentes penales, y que la documentación que adjunto (foto y DNI) es auténtica y me corresponde.</p>
+    </div>
+
+    <div class="campo check-line">
+      <input type="checkbox" id="f-acepta-declaracion" required>
+      <label for="f-acepta-declaracion">Leí y acepto la declaración jurada de arriba. *</label>
+    </div>
+  </section>
+
+  <!-- PASO 6: foto, firma y DNI -->
+  <section class="paso" data-paso="6">
+    <h2>Foto, firma y DNI</h2>
+    <p class="paso-desc">Estos tres elementos van a formar parte de tu solicitud, tal como en el formulario oficial.</p>
+
+    <div class="campo">
+      <label>Foto de perfil *</label>
+      <div class="captura-box">
+        <img id="preview-perfil" style="display:none;">
+        <p class="placeholder" id="placeholder-perfil">Sacate una foto de frente, con buena luz.</p>
+        <label class="btn-file" for="input-perfil">Tomar foto</label>
+        <input type="file" id="input-perfil" accept="image/*" capture="user">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Foto del DNI (frente) *</label>
+      <div class="captura-box">
+        <img id="preview-dni" style="display:none;">
+        <p class="placeholder" id="placeholder-dni">Fotografiá el frente de tu DNI, que se lean bien los datos.</p>
+        <label class="btn-file" for="input-dni">Tomar foto</label>
+        <input type="file" id="input-dni" accept="image/*" capture="environment">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Firma *</label>
+      <div class="firma-wrap">
+        <canvas id="firma-canvas" width="600" height="220"></canvas>
+      </div>
+      <button type="button" class="ghost" id="btn-limpiar-firma" style="width:auto;">Limpiar firma</button>
+    </div>
+
+    <div class="fila-3" style="margin-top:22px;">
+      <div class="campo"><label>Aclaración (tu nombre) *</label><input type="text" id="f-firma-aclaracion"></div>
+      <div class="campo"><label>Lugar *</label><input type="text" id="f-firma-lugar"></div>
+      <div class="campo"><label>Fecha *</label><input type="date" id="f-firma-fecha"></div>
+    </div>
+  </section>
+
+  <!-- PASO 7: revisar y enviar -->
+  <section class="paso" data-paso="7">
+    <h2>Revisar y enviar</h2>
+    <p class="paso-desc">Un último vistazo antes de enviar tu solicitud.</p>
+    <div id="resumen"></div>
+    <div id="box-turnstile" style="margin:22px 0;"></div>
+    <span class="error-msg" id="error-envio"></span>
+  </section>
+
+  <div class="nav-pasos">
+    <button type="button" class="ghost" id="btn-atras" style="display:none;">← Atrás</button>
+    <div class="espaciador"></div>
+    <button type="button" class="primary" id="btn-siguiente">Siguiente →</button>
+    <button type="button" class="primary" id="btn-enviar" style="display:none;">Enviar solicitud</button>
+  </div>
+
+</form>
+
+<div id="vista-final" style="display:none;" class="pantalla-final">
+  <div class="simbolo">△</div>
+  <h1 style="font-size:1.8rem;">Solicitud enviada</h1>
+  <p class="muted" style="max-width:480px; margin:14px auto 0;">
+    Recibimos tu solicitud de admisión. Un miembro de la Logia va a revisarla y ponerse en contacto con vos
+    para los próximos pasos.
+  </p>
+  <a href="../index.html" class="hero-cta" style="display:inline-flex; margin-top:30px; text-decoration:none;">Volver al inicio</a>
+</div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../shared/supabase-client.js"></script>
+<!--
+  Turnstile (anti-spam): renderizado explícito, porque el contenedor del
+  widget recién se agrega al DOM en el paso 7 (revisar y enviar) — el
+  script ya terminó de cargar para entonces, así que el auto-render
+  implícito (buscar elementos con clase cf-turnstile al cargar la
+  página) no lo detectaría. onload=onloadTurnstile avisa cuándo la API
+  ya está lista para llamar a turnstile.render(...).
+-->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstile&render=explicit" async defer></script>
+<script>
+const TURNSTILE_SITEKEY = "0x4AAAAAAEjGkNof2hXWioe2";
+const BUCKET_MEDIA = "admision_media";
+
+function $(id) { return document.getElementById(id); }
+
+// ---- estado del wizard ----
+const solicitudId = crypto.randomUUID();
+let pasoActual = 1;
+const TOTAL_PASOS = 7;
+const TITULOS_PASO = {
+  1: "Datos personales", 2: "Familia", 3: "Formación y profesión",
+  4: "Sobre vos", 5: "Declaración jurada", 6: "Foto, firma y DNI", 7: "Revisar y enviar"
+};
+
+let hijos = [];
+let archivoPerfil = null;
+let archivoDni = null;
+let turnstileToken = "";
+
+// ---- intro ----
+$("btn-empezar").addEventListener("click", () => {
+  $("vista-intro").style.display = "none";
+  $("vista-form").style.display = "block";
+  $("f-firma-fecha").value = hoyISO();
+  window.scrollTo(0, 0);
+});
+
+function hoyISO() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// ---- toggles condicionales ----
+$("f-nacido-exterior").addEventListener("change", (e) => {
+  $("box-exterior").style.display = e.target.checked ? "block" : "none";
+});
+$("f-estado-civil").addEventListener("change", (e) => {
+  $("box-conyuge").style.display = e.target.value === "Casado/a" ? "block" : "none";
+});
+
+// ---- hijos ----
+function renderHijos() {
+  const cont = $("lista-hijos");
+  cont.innerHTML = hijos.map((h, i) => `
+    <div class="hijo-fila">
+      <input type="text" placeholder="Nombre" value="${escAttr(h.nombre)}" data-idx="${i}" data-campo="nombre" class="hijo-input">
+      <input type="number" placeholder="Edad" min="0" value="${h.edad ?? ""}" data-idx="${i}" data-campo="edad" class="hijo-input">
+      <button type="button" class="btn-quitar" data-idx="${i}">✕</button>
+    </div>
+  `).join("");
+  cont.querySelectorAll(".hijo-input").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const i = Number(e.target.dataset.idx);
+      const campo = e.target.dataset.campo;
+      hijos[i][campo] = campo === "edad" ? (e.target.value === "" ? null : Number(e.target.value)) : e.target.value;
+    });
+  });
+  cont.querySelectorAll(".btn-quitar").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      hijos.splice(Number(e.target.dataset.idx), 1);
+      renderHijos();
+      actualizarBotonHijo();
+    });
+  });
+}
+function actualizarBotonHijo() {
+  $("btn-agregar-hijo").disabled = hijos.length >= 6;
+  $("btn-agregar-hijo").style.opacity = hijos.length >= 6 ? .5 : 1;
+}
+$("btn-agregar-hijo").addEventListener("click", () => {
+  if (hijos.length >= 6) return;
+  hijos.push({ nombre: "", edad: null });
+  renderHijos();
+  actualizarBotonHijo();
+});
+
+function escAttr(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+// ---- captura de fotos (cámara) ----
+function initCaptura(inputId, previewId, placeholderId, guardarEn) {
+  $(inputId).addEventListener("change", (e) => {
+    const archivo = e.target.files[0];
+    if (!archivo) return;
+    if (guardarEn === "perfil") archivoPerfil = archivo; else archivoDni = archivo;
+    const url = URL.createObjectURL(archivo);
+    $(previewId).src = url;
+    $(previewId).style.display = "block";
+    $(placeholderId).style.display = "none";
+  });
+}
+initCaptura("input-perfil", "preview-perfil", "placeholder-perfil", "perfil");
+initCaptura("input-dni", "preview-dni", "placeholder-dni", "dni");
+
+// ---- firma (canvas) ----
+let ctxFirma, dibujando = false, firmaTieneTrazo = false;
+function initCanvasFirma() {
+  const canvas = $("firma-canvas");
+  ctxFirma = canvas.getContext("2d");
+  limpiarCanvasFirma();
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const escalaX = canvas.width / r.width;
+    const escalaY = canvas.height / r.height;
+    const p = e.touches ? e.touches[0] : e;
+    return { x: (p.clientX - r.left) * escalaX, y: (p.clientY - r.top) * escalaY };
+  }
+  function empezar(e) {
+    e.preventDefault();
+    dibujando = true;
+    const p = pos(e);
+    ctxFirma.beginPath();
+    ctxFirma.moveTo(p.x, p.y);
+  }
+  function mover(e) {
+    if (!dibujando) return;
+    e.preventDefault();
+    const p = pos(e);
+    ctxFirma.lineTo(p.x, p.y);
+    ctxFirma.strokeStyle = "#1a1a1a";
+    ctxFirma.lineWidth = 2.4;
+    ctxFirma.lineCap = "round";
+    ctxFirma.stroke();
+    firmaTieneTrazo = true;
+  }
+  function terminar() { dibujando = false; }
+
+  canvas.addEventListener("mousedown", empezar);
+  canvas.addEventListener("mousemove", mover);
+  canvas.addEventListener("mouseup", terminar);
+  canvas.addEventListener("mouseleave", terminar);
+  canvas.addEventListener("touchstart", empezar, { passive: false });
+  canvas.addEventListener("touchmove", mover, { passive: false });
+  canvas.addEventListener("touchend", terminar);
+}
+function limpiarCanvasFirma() {
+  ctxFirma.fillStyle = "#fff";
+  ctxFirma.fillRect(0, 0, ctxFirma.canvas.width, ctxFirma.canvas.height);
+  firmaTieneTrazo = false;
+}
+initCanvasFirma();
+$("btn-limpiar-firma").addEventListener("click", limpiarCanvasFirma);
+
+// ---- navegación entre pasos ----
+function mostrarPaso(n) {
+  document.querySelectorAll(".paso").forEach(p => p.classList.toggle("activo", Number(p.dataset.paso) === n));
+  $("progreso-relleno").style.width = (n / TOTAL_PASOS * 100) + "%";
+  $("progreso-paso-actual").textContent = `Paso ${n} de ${TOTAL_PASOS}`;
+  $("progreso-titulo-actual").textContent = TITULOS_PASO[n];
+  $("btn-atras").style.display = n === 1 ? "none" : "inline-flex";
+  $("btn-siguiente").style.display = n === TOTAL_PASOS ? "none" : "inline-flex";
+  $("btn-enviar").style.display = n === TOTAL_PASOS ? "inline-flex" : "none";
+  if (n === TOTAL_PASOS) renderResumen();
+  window.scrollTo(0, 0);
+}
+
+function validarPaso(n) {
+  if (n === 1) {
+    if (!$("f-apellido").value.trim()) return "Falta el apellido.";
+    if (!$("f-nombre").value.trim()) return "Falta el nombre.";
+    if (!$("f-dni").value.trim()) return "Falta el DNI.";
+  }
+  if (n === 5) {
+    if (!$("f-acepta-declaracion").checked) return "Tenés que aceptar la declaración jurada para continuar.";
+  }
+  if (n === 6) {
+    if (!archivoPerfil) return "Falta la foto de perfil.";
+    if (!archivoDni) return "Falta la foto del DNI.";
+    if (!firmaTieneTrazo) return "Falta la firma.";
+    if (!$("f-firma-aclaracion").value.trim()) return "Falta la aclaración de la firma.";
+    if (!$("f-firma-lugar").value.trim()) return "Falta el lugar.";
+    if (!$("f-firma-fecha").value) return "Falta la fecha.";
+  }
+  return null;
+}
+
+$("btn-siguiente").addEventListener("click", () => {
+  const error = validarPaso(pasoActual);
+  if (error) { alert(error); return; }
+  pasoActual++;
+  mostrarPaso(pasoActual);
+});
+$("btn-atras").addEventListener("click", () => {
+  pasoActual--;
+  mostrarPaso(pasoActual);
+});
+
+// ---- resumen final ----
+function renderResumen() {
+  const nombreCompleto = `${$("f-nombre").value} ${$("f-apellido").value}`.trim();
+  $("resumen").innerHTML = `
+    <div class="resumen-bloque">
+      <h3>Datos personales</h3>
+      <div class="resumen-fila"><span>Nombre completo</span><span>${escAttr(nombreCompleto)}</span></div>
+      <div class="resumen-fila"><span>DNI</span><span>${escAttr($("f-dni").value)}</span></div>
+      <div class="resumen-fila"><span>Email</span><span>${escAttr($("f-email").value || "—")}</span></div>
+      <div class="resumen-fila"><span>Teléfono</span><span>${escAttr($("f-telefono").value || "—")}</span></div>
+    </div>
+    <div class="resumen-bloque">
+      <h3>Familia</h3>
+      <div class="resumen-fila"><span>Estado civil</span><span>${escAttr($("f-estado-civil").value || "—")}</span></div>
+      <div class="resumen-fila"><span>Hijos declarados</span><span>${hijos.length}</span></div>
+    </div>
+    <div class="resumen-bloque">
+      <h3>Formación y profesión</h3>
+      <div class="resumen-fila"><span>Profesión</span><span>${escAttr($("f-profesion").value || "—")}</span></div>
+    </div>
+    <div class="resumen-bloque">
+      <h3>Adjuntos</h3>
+      <div class="resumen-fila"><span>Foto de perfil</span><span>${archivoPerfil ? "Cargada ✓" : "Falta"}</span></div>
+      <div class="resumen-fila"><span>Foto de DNI</span><span>${archivoDni ? "Cargada ✓" : "Falta"}</span></div>
+      <div class="resumen-fila"><span>Firma</span><span>${firmaTieneTrazo ? "Firmada ✓" : "Falta"}</span></div>
+    </div>
+  `;
+
+  const cont = $("box-turnstile");
+  if (TURNSTILE_SITEKEY) {
+    if (!$("turnstile-widget")) cont.innerHTML = '<div id="turnstile-widget"></div>';
+    intentarRenderTurnstile();
+  } else {
+    cont.innerHTML = "";
+  }
+}
+
+// ---- Turnstile: render explícito (ver comentario junto al <script> de arriba) ----
+let turnstileApiListo = false;
+let turnstileWidgetId = null;
+function onloadTurnstile() {
+  turnstileApiListo = true;
+  intentarRenderTurnstile();
+}
+function intentarRenderTurnstile() {
+  if (!TURNSTILE_SITEKEY || !turnstileApiListo || typeof turnstile === "undefined") return;
+  if (turnstileWidgetId !== null) return; // ya está renderizado, no se duplica
+  const contenedor = $("turnstile-widget");
+  if (!contenedor) return;
+  turnstileWidgetId = turnstile.render(contenedor, {
+    sitekey: TURNSTILE_SITEKEY,
+    callback: onTurnstileOk,
+    "error-callback": () => { turnstileToken = ""; },
+    "expired-callback": () => { turnstileToken = ""; },
+  });
+}
+function onTurnstileOk(token) { turnstileToken = token; }
+
+// ---- envío ----
+$("btn-enviar").addEventListener("click", async () => {
+  $("error-envio").textContent = "";
+
+  if ($("sitio_web").value) {
+    // honeypot: un bot lo completó. Simulamos éxito sin escribir nada.
+    mostrarPantallaFinal();
+    return;
+  }
+  if (TURNSTILE_SITEKEY && !turnstileToken) {
+    $("error-envio").textContent = "Completá la verificación anti-spam para continuar.";
+    return;
+  }
+
+  const btn = $("btn-enviar");
+  btn.disabled = true;
+  btn.textContent = "Enviando…";
+
+  try {
+    const carpeta = solicitudId;
+
+    const [subidaPerfil, subidaDni, subidaFirma] = await Promise.all([
+      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/perfil.jpg`, archivoPerfil, { contentType: archivoPerfil.type || "image/jpeg" }),
+      db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/dni.jpg`, archivoDni, { contentType: archivoDni.type || "image/jpeg" }),
+      new Promise((resolve) => $("firma-canvas").toBlob(resolve, "image/png")).then(blob =>
+        db.storage.from(BUCKET_MEDIA).upload(`${carpeta}/firma.png`, blob, { contentType: "image/png" })
+      ),
+    ]);
+    if (subidaPerfil.error) throw subidaPerfil.error;
+    if (subidaDni.error) throw subidaDni.error;
+    if (subidaFirma.error) throw subidaFirma.error;
+
+    const fila = {
+      id: solicitudId,
+      apellido: $("f-apellido").value.trim(),
+      nombre: $("f-nombre").value.trim(),
+      domicilio: $("f-domicilio").value.trim() || null,
+      telefono: $("f-telefono").value.trim() || null,
+      email: $("f-email").value.trim() || null,
+      ciudad: $("f-ciudad").value.trim() || null,
+      provincia: $("f-provincia").value.trim() || null,
+      fecha_nacimiento: $("f-fecha-nacimiento").value || null,
+      dni: $("f-dni").value.trim(),
+      nacido_exterior: $("f-nacido-exterior").checked,
+      pais_nacimiento: $("f-pais-nacimiento").value.trim() || null,
+      ciudad_nacimiento: $("f-ciudad-nacimiento").value.trim() || null,
+      anios_residencia_argentina: $("f-anios-residencia").value ? Number($("f-anios-residencia").value) : null,
+      nombre_padre: $("f-nombre-padre").value.trim() || null,
+      nombre_madre: $("f-nombre-madre").value.trim() || null,
+      estado_civil: $("f-estado-civil").value || null,
+      nombre_conyuge: $("f-nombre-conyuge").value.trim() || null,
+      fecha_nacimiento_conyuge: $("f-fecha-conyuge").value || null,
+      hijos: hijos.filter(h => h.nombre && h.nombre.trim()),
+      nivel_estudios: $("f-nivel-estudios").value || null,
+      carrera: $("f-carrera").value.trim() || null,
+      titulo_obtenido: $("f-titulo").value.trim() || null,
+      profesion: $("f-profesion").value.trim() || null,
+      rubro: $("f-rubro").value.trim() || null,
+      empresa_contratante: $("f-empresa").value.trim() || null,
+      afiliaciones_religiosas_culturales: $("f-afiliaciones").value.trim() || null,
+      corrientes_pensamiento: $("f-corrientes").value.trim() || null,
+      familiares_masones: $("f-familiares-masones").value.trim() || null,
+      acepta_declaracion: $("f-acepta-declaracion").checked,
+      foto_perfil_url: `${carpeta}/perfil.jpg`,
+      foto_dni_url: `${carpeta}/dni.jpg`,
+      firma_candidato_url: `${carpeta}/firma.png`,
+      firma_aclaracion: $("f-firma-aclaracion").value.trim(),
+      firma_lugar: $("f-firma-lugar").value.trim(),
+      firma_fecha: $("f-firma-fecha").value,
+    };
+
+    // anon no tiene SELECT sobre esta tabla: no pedimos .select() de vuelta,
+    // ya tenemos todos los datos (el id lo generamos nosotros). Si no hay
+    // error, la fila se insertó.
+    const { error: errInsert } = await db.from("solicitudes_admision").insert(fila);
+    if (errInsert) throw errInsert;
+
+    mostrarPantallaFinal();
+  } catch (e) {
+    console.error(e);
+    $("error-envio").textContent = "No se pudo enviar la solicitud. Revisá tu conexión e intentá de nuevo.";
+    btn.disabled = false;
+    btn.textContent = "Enviar solicitud";
+  }
+});
+
+function mostrarPantallaFinal() {
+  $("vista-form").style.display = "none";
+  $("vista-final").style.display = "block";
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
