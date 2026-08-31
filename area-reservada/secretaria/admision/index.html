@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071b14">
+<title>Admisión · Secretaría · Resp∴ Log∴ José Hernández N° 75</title>
+<link rel="stylesheet" href="../../shared/style.css">
+<style>
+  .wrap { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:24px; flex-wrap:wrap;
+  }
+  .topbar .left { display:flex; flex-direction:column; gap:2px; }
+  .topbar-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .topbar-actions button { width:auto; }
+
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .tab-btn {
+    background:none; border:1px solid var(--line); color:var(--muted); border-radius:20px;
+    padding:8px 16px; font-size:.8rem; cursor:pointer; transition:.2s; width:auto;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .tab-btn:hover { border-color:var(--gold); color:var(--gold-soft); }
+  .tab-btn.on { border-color:var(--gold); color:var(--gold-soft); background:rgba(201,168,93,.12); }
+  .tab-btn.negro.on { border-color:var(--danger); color:var(--danger); background:rgba(217,123,108,.12); }
+  .tab-count {
+    background:rgba(255,255,255,.08); border-radius:10px; padding:1px 7px; font-size:.7rem;
+  }
+
+  .empty-state { text-align:center; padding:50px 16px; color:var(--muted); font-size:.9rem; }
+
+  .sol-row {
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    padding:16px; border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .sol-row:last-child { border-bottom:none; }
+  .sol-info { min-width:0; flex:1 1 260px; }
+  .sol-nombre { font-size:1rem; color:var(--cream); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .sol-meta { color:var(--muted); font-size:.82rem; margin-top:3px; }
+  .sol-acciones { display:flex; gap:6px; flex-wrap:wrap; align-items:flex-start; }
+  .sol-acciones button { width:auto; padding:7px 12px; font-size:.78rem; }
+
+  .pill { display:inline-block; font-size:.7rem; letter-spacing:.03em; padding:3px 10px; border-radius:20px; border:1px solid var(--line); white-space:nowrap; }
+  .pill.sin_leer { color:var(--muted); }
+  .pill.proponente_designado { color:#8fb8d9; border-color:#8fb8d9; background:rgba(143,184,217,.1); }
+  .pill.aplomada { color:var(--gold-soft); border-color:var(--gold); background:rgba(201,168,93,.12); }
+  .pill.aprobada { color:#8fd9a0; border-color:#8fd9a0; background:rgba(143,217,160,.1); }
+  .pill.descartada { color:var(--danger); border-color:var(--danger); background:rgba(217,123,108,.1); }
+
+  .card-header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:18px 18px 0; }
+  .card-header h2 { font-size:1.05rem; margin:0; }
+
+  .aviso-negro {
+    display:flex; gap:10px; align-items:flex-start; background:rgba(217,123,108,.12);
+    border:1px solid var(--danger); border-radius:8px; padding:12px 14px; margin-bottom:18px; font-size:.85rem;
+  }
+  .aviso-negro strong { color:var(--danger); }
+
+  /* ---- modal genérico ---- */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(3,17,12,.82); z-index:300; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.abierto { display:flex; }
+  .modal-card { background:var(--green-1); border:1px solid var(--line); border-radius:10px; width:100%; max-width:560px; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; }
+  .modal-card.ancho { max-width:820px; }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line); }
+  .modal-header h3 { margin:0; font-size:1.05rem; }
+  .modal-body { padding:20px; overflow:auto; }
+  .modal-footer { display:flex; justify-content:flex-end; gap:8px; padding:14px 20px; border-top:1px solid var(--line); }
+  .modal-footer button { width:auto; }
+
+  .campo { margin-bottom:16px; }
+  .fila-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:560px) { .fila-2 { grid-template-columns:1fr; } }
+  textarea {
+    width:100%; background:var(--green-2); border:1px solid var(--line); border-radius:6px; color:var(--cream);
+    padding:12px 14px; font-family:Inter,sans-serif; font-size:.95rem; outline:none; resize:vertical; min-height:80px;
+  }
+  textarea:focus { border-color:var(--gold); }
+
+  .detalle-bloque { margin-bottom:22px; }
+  .detalle-bloque h4 { font-size:.75rem; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-soft); margin:0 0 8px; font-weight:500; }
+  .detalle-fila { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px solid var(--line); font-size:.86rem; }
+  .detalle-fila span:first-child { color:var(--muted); flex-shrink:0; }
+  .detalle-fila span:last-child { text-align:right; }
+  .detalle-fotos { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; }
+  .detalle-fotos img { max-width:160px; max-height:160px; border-radius:6px; background:#fff; padding:4px; }
+  .detalle-firma img { max-width:200px; background:#fff; border-radius:6px; padding:6px; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="left">
+      <div class="kicker">Secretaría</div>
+      <h1 style="font-size:1.6rem; margin:4px 0 0;">Admisión</h1>
+      <p class="muted" id="subtitulo" style="margin:2px 0 0;">Solicitudes de admisión de nuevos HH∴</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="ghost" id="btn-secretaria">← Secretaría</button>
+      <button class="ghost" id="btn-salir">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div id="vista-cargando" class="muted">Cargando…</div>
+
+  <!-- ============ VISTA SECRETARIO / VM ============ -->
+  <div id="vista-secretario" style="display:none;">
+    <div class="tabs" id="tabs"></div>
+    <div class="card" id="lista-card">
+      <div class="card-header"><h2 id="lista-titulo">Solicitudes</h2></div>
+      <div id="lista-contenido"></div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA PROPONENTE ============ -->
+  <div id="vista-proponente" style="display:none;">
+    <div class="card">
+      <div class="card-header"><h2>Solicitudes que tenés asignadas</h2></div>
+      <div id="lista-proponente"></div>
+    </div>
+  </div>
+
+  <!-- ============ SIN NADA QUE VER ============ -->
+  <div id="vista-vacio" style="display:none;">
+    <div class="empty-state">No tenés solicitudes de admisión para gestionar por el momento.</div>
+  </div>
+
+</div>
+
+<!-- ===================== MODAL: DETALLE ===================== -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal-card ancho">
+    <div class="modal-header">
+      <h3 id="detalle-titulo">Solicitud</h3>
+      <button type="button" class="ghost" id="btn-cerrar-detalle" style="width:auto;">✕</button>
+    </div>
+    <div class="modal-body" id="detalle-body"></div>
+    <div class="modal-footer" id="detalle-footer"></div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: DESIGNAR PROPONENTE ===================== -->
+<div class="modal-overlay" id="modal-proponente">
+  <div class="modal-card">
+    <div class="modal-header"><h3>Designar Maestro Proponente</h3></div>
+    <div class="modal-body">
+      <div id="aviso-negro-proponente"></div>
+      <div class="campo">
+        <label for="sel-proponente">Elegí un H∴ de grado Maestro</label>
+        <select id="sel-proponente"></select>
+      </div>
+      <span class="error-msg" id="error-proponente"></span>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="ghost" id="btn-cancelar-proponente">Cancelar</button>
+      <button type="button" class="primary" id="btn-confirmar-proponente">Designar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: APROBAR ===================== -->
+<div class="modal-overlay" id="modal-aprobar">
+  <div class="modal-card">
+    <div class="modal-header"><h3>Aprobar solicitud</h3></div>
+    <div class="modal-body">
+      <p class="muted" style="margin-top:0;">Se van a incrustar las firmas del Venerable Maestro y del Secretario vigentes.</p>
+      <div class="campo">
+        <label for="f-fecha-tratamiento">Fecha de tratamiento en tenida</label>
+        <input type="date" id="f-fecha-tratamiento">
+      </div>
+      <span class="error-msg" id="error-aprobar"></span>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="ghost" id="btn-cancelar-aprobar">Cancelar</button>
+      <button type="button" class="primary" id="btn-confirmar-aprobar">Aprobar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: DESCARTAR ===================== -->
+<div class="modal-overlay" id="modal-descartar">
+  <div class="modal-card">
+    <div class="modal-header"><h3>Descartar solicitud</h3></div>
+    <div class="modal-body">
+      <p class="muted" style="margin-top:0;">Esta solicitud va a pasar al Libro Negro. Contá el motivo — queda registrado.</p>
+      <div class="campo">
+        <label for="f-motivo-descarte">Motivo *</label>
+        <textarea id="f-motivo-descarte"></textarea>
+      </div>
+      <span class="error-msg" id="error-descartar"></span>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="ghost" id="btn-cancelar-descartar">Cancelar</button>
+      <button type="button" class="primary" id="btn-confirmar-descartar" style="background:var(--danger);">Descartar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../../shared/supabase-client.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+const BUCKET_MEDIA = "admision_media";
+const BUCKET_FIRMAS = "firmas";
+
+const ESTADOS = [
+  { key: "sin_leer", label: "Sin leer" },
+  { key: "proponente_designado", label: "Proponente designado" },
+  { key: "aplomada", label: "Aplomada" },
+  { key: "aprobada", label: "Aprobada" },
+  { key: "descartada", label: "Libro Negro" },
+];
+
+let sesion = null;
+let esSecretario = false;
+let miHermanoId = null;
+let solicitudesCache = [];
+let maestros = []; // [{id, nombre_completo}]
+let tabActual = "sin_leer";
+let solicitudEnModal = null; // fila completa mostrada en el modal de detalle
+let idParaAccion = null;
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function toast(msg, esError) {
+  const el = document.createElement("div");
+  el.style.cssText = "position:fixed;bottom:22px;left:50%;transform:translateX(-50%);"
+    + "background:var(--green-3);color:" + (esError ? "var(--danger)" : "var(--cream)") + ";"
+    + "border:1px solid " + (esError ? "var(--danger)" : "var(--gold)") + ";"
+    + "padding:10px 20px;border-radius:20px;font-size:.85rem;z-index:400;box-shadow:0 6px 24px rgba(0,0,0,.4);";
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3400);
+}
+function fmtFecha(iso) {
+  if (!iso) return "—";
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+function fmtFechaHora(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleDateString("es-AR") + " " + d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+}
+function nombreCompleto(s) { return `${s.nombre} ${s.apellido}`; }
+
+function mostrarVista(id) {
+  ["vista-cargando", "vista-secretario", "vista-proponente", "vista-vacio"].forEach((v) => {
+    $(v).style.display = v === id ? "block" : "none";
+  });
+}
+
+// ============================================================
+// Arranque
+// ============================================================
+(async () => {
+  sesion = await exigirSesion();
+  if (!sesion) return;
+
+  const [{ data: soySec, error: errSec }, { data: hermanoPropio }] = await Promise.all([
+    db.rpc("soy_secretario"),
+    db.from("hermanos").select("id").eq("auth_user_id", sesion.user.id).maybeSingle(),
+  ]);
+  if (errSec) console.error("Error chequeando soy_secretario():", errSec);
+  esSecretario = !!soySec;
+  miHermanoId = hermanoPropio?.id || null;
+
+  if (esSecretario) {
+    $("subtitulo").textContent = "Solicitudes de admisión de nuevos HH∴ y Libro Negro";
+    await cargarMaestros();
+    renderTabs();
+  } else {
+    $("subtitulo").textContent = "Tu(s) solicitud(es) asignada(s) como Maestro Proponente";
+  }
+
+  await cargarListado();
+})();
+
+$("btn-secretaria").addEventListener("click", () => window.location.href = "../index.html");
+$("btn-salir").addEventListener("click", async () => {
+  await db.auth.signOut();
+  window.location.href = "../../index.html";
+});
+
+async function cargarMaestros() {
+  const { data: gradosData, error: errGrados } = await db.from("grados").select("*");
+  if (errGrados) { console.error(errGrados); return; }
+  const maestroGrado = (gradosData || []).find((g) => (g.nombre || "").toLowerCase() === "maestro");
+  if (!maestroGrado) return;
+
+  const { data: hermanosData, error: errHerm } = await db
+    .from("hermanos").select("id,nombre_completo,grado_id,activo")
+    .eq("activo", true).eq("grado_id", maestroGrado.id)
+    .order("nombre_completo");
+  if (errHerm) { console.error(errHerm); return; }
+  maestros = hermanosData || [];
+}
+
+// ============================================================
+// LISTADO
+// ============================================================
+async function cargarListado() {
+  const { data, error } = await db.from("solicitudes_admision").select("*").order("creado_en", { ascending: false });
+  if (error) { toast("No se pudo cargar el listado de solicitudes.", true); console.error(error); mostrarVista("vista-vacio"); return; }
+
+  solicitudesCache = data || [];
+
+  if (esSecretario) {
+    renderTabs();
+    renderListadoSecretario();
+    mostrarVista("vista-secretario");
+  } else {
+    const propias = solicitudesCache.filter((s) => s.estado === "proponente_designado" && s.proponente_id === miHermanoId);
+    if (propias.length === 0 && solicitudesCache.length === 0) {
+      mostrarVista("vista-vacio");
+    } else {
+      renderListadoProponente(propias.length ? propias : solicitudesCache);
+      mostrarVista("vista-proponente");
+    }
+  }
+}
+
+function renderTabs() {
+  $("tabs").innerHTML = ESTADOS.map((e) => {
+    const n = solicitudesCache.filter((s) => s.estado === e.key).length;
+    const clase = "tab-btn" + (e.key === tabActual ? " on" : "") + (e.key === "descartada" ? " negro" : "");
+    return `<button type="button" class="${clase}" data-estado="${e.key}">${e.label} <span class="tab-count">${n}</span></button>`;
+  }).join("");
+  $("tabs").querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => { tabActual = btn.dataset.estado; renderTabs(); renderListadoSecretario(); });
+  });
+}
+
+function renderListadoSecretario() {
+  const filtradas = solicitudesCache.filter((s) => s.estado === tabActual);
+  $("lista-titulo").textContent = ESTADOS.find((e) => e.key === tabActual).label;
+  const cont = $("lista-contenido");
+
+  if (filtradas.length === 0) {
+    cont.innerHTML = '<div class="empty-state">No hay solicitudes en este estado.</div>';
+    return;
+  }
+
+  cont.innerHTML = filtradas.map((s) => `
+    <div class="sol-row" data-id="${s.id}">
+      <div class="sol-info">
+        <div class="sol-nombre">
+          <span>${esc(nombreCompleto(s))}</span>
+          <span class="pill ${s.estado}">${ESTADOS.find((e) => e.key === s.estado).label}</span>
+        </div>
+        <div class="sol-meta">DNI ${esc(s.dni)} · Recibida el ${fmtFechaHora(s.creado_en)}</div>
+        ${s.estado === "proponente_designado" ? `<div class="sol-meta">Proponente: ${esc(nombreProponente(s.proponente_id))}</div>` : ""}
+        ${s.estado === "descartada" ? `<div class="sol-meta">Motivo: ${esc(s.motivo_descarte)}</div>` : ""}
+      </div>
+      <div class="sol-acciones">
+        <button type="button" class="ghost btn-ver" data-id="${s.id}">Ver</button>
+        <button type="button" class="ghost btn-pdf" data-id="${s.id}">PDF</button>
+        ${s.estado === "sin_leer" ? `<button type="button" class="ghost btn-designar" data-id="${s.id}">Designar proponente</button>` : ""}
+        ${s.estado === "aplomada" ? `<button type="button" class="ghost btn-aprobar" data-id="${s.id}">Aprobar</button>` : ""}
+        ${s.estado !== "descartada" ? `<button type="button" class="ghost btn-descartar" data-id="${s.id}" style="color:var(--danger); border-color:var(--danger);">Descartar</button>` : ""}
+      </div>
+    </div>
+  `).join("");
+
+  cont.querySelectorAll(".btn-ver").forEach((b) => b.addEventListener("click", () => abrirDetalle(b.dataset.id)));
+  cont.querySelectorAll(".btn-pdf").forEach((b) => b.addEventListener("click", () => descargarPdf(b.dataset.id)));
+  cont.querySelectorAll(".btn-designar").forEach((b) => b.addEventListener("click", () => abrirModalProponente(b.dataset.id)));
+  cont.querySelectorAll(".btn-aprobar").forEach((b) => b.addEventListener("click", () => abrirModalAprobar(b.dataset.id)));
+  cont.querySelectorAll(".btn-descartar").forEach((b) => b.addEventListener("click", () => abrirModalDescartar(b.dataset.id)));
+}
+
+function renderListadoProponente(lista) {
+  const cont = $("lista-proponente");
+  if (lista.length === 0) {
+    cont.innerHTML = '<div class="empty-state">No tenés solicitudes asignadas en este momento.</div>';
+    return;
+  }
+  cont.innerHTML = lista.map((s) => `
+    <div class="sol-row" data-id="${s.id}">
+      <div class="sol-info">
+        <div class="sol-nombre">
+          <span>${esc(nombreCompleto(s))}</span>
+          <span class="pill ${s.estado}">${ESTADOS.find((e) => e.key === s.estado).label}</span>
+        </div>
+        <div class="sol-meta">DNI ${esc(s.dni)} · Designado el ${fmtFechaHora(s.proponente_designado_en)}</div>
+      </div>
+      <div class="sol-acciones">
+        <button type="button" class="ghost btn-ver" data-id="${s.id}">Ver</button>
+        <button type="button" class="ghost btn-pdf" data-id="${s.id}">PDF</button>
+        ${s.estado === "proponente_designado" ? `<button type="button" class="primary" style="width:auto;" data-id="${s.id}" id="btn-aplomar-${s.id}">Marcar aplomada</button>` : ""}
+      </div>
+    </div>
+  `).join("");
+  cont.querySelectorAll(".btn-ver").forEach((b) => b.addEventListener("click", () => abrirDetalle(b.dataset.id)));
+  cont.querySelectorAll(".btn-pdf").forEach((b) => b.addEventListener("click", () => descargarPdf(b.dataset.id)));
+  lista.filter((s) => s.estado === "proponente_designado").forEach((s) => {
+    const btn = $(`btn-aplomar-${s.id}`);
+    if (btn) btn.addEventListener("click", () => marcarAplomada(s.id));
+  });
+}
+
+function nombreProponente(id) {
+  const m = maestros.find((h) => h.id === id);
+  return m ? m.nombre_completo : "—";
+}
+
+// ============================================================
+// LIBRO NEGRO: chequeo automático
+// ============================================================
+async function chequearLibroNegro(dni, apellido, nombre) {
+  const { data, error } = await db.rpc("admision_chequear_libro_negro", { p_dni: dni, p_apellido: apellido, p_nombre: nombre });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+function renderAvisoNegro(matches) {
+  if (!matches || matches.length === 0) return "";
+  const fuerte = matches.some((m) => m.tipo_match === "dni_exacto");
+  const items = matches.map((m) =>
+    `${esc(m.nombre)} ${esc(m.apellido)} — ${m.tipo_match === "dni_exacto" ? "mismo DNI" : "nombre similar"} — descartada el ${fmtFecha((m.descartada_en || "").slice(0, 10))}${m.motivo_descarte ? ": " + esc(m.motivo_descarte) : ""}`
+  ).join("<br>");
+  return `<div class="aviso-negro"><span>⚠</span><div><strong>${fuerte ? "Coincidencia en el Libro Negro" : "Posible coincidencia en el Libro Negro"}</strong><br>${items}</div></div>`;
+}
+
+// ============================================================
+// MODAL: DETALLE
+// ============================================================
+async function abrirDetalle(id) {
+  const s = solicitudesCache.find((x) => x.id === id);
+  if (!s) return;
+  solicitudEnModal = s;
+  $("detalle-titulo").textContent = nombreCompleto(s);
+  $("detalle-body").innerHTML = '<p class="muted">Cargando…</p>';
+  $("detalle-footer").innerHTML = "";
+  $("modal-detalle").classList.add("abierto");
+
+  const [fotoPerfil, fotoDni, firmaCand] = await Promise.all([
+    signedUrlMedia(s.foto_perfil_url), signedUrlMedia(s.foto_dni_url), signedUrlMedia(s.firma_candidato_url),
+  ]);
+
+  let avisoHtml = "";
+  if (esSecretario && s.estado !== "descartada") {
+    const matches = await chequearLibroNegro(s.dni, s.apellido, s.nombre);
+    avisoHtml = renderAvisoNegro(matches);
+  }
+
+  $("detalle-body").innerHTML = avisoHtml + `
+    <div class="detalle-bloque">
+      <h4>Datos personales</h4>
+      <div class="detalle-fila"><span>Nombre completo</span><span>${esc(nombreCompleto(s))}</span></div>
+      <div class="detalle-fila"><span>DNI</span><span>${esc(s.dni)}</span></div>
+      <div class="detalle-fila"><span>Fecha de nacimiento</span><span>${fmtFecha(s.fecha_nacimiento)}</span></div>
+      <div class="detalle-fila"><span>Domicilio</span><span>${esc(s.domicilio) || "—"}</span></div>
+      <div class="detalle-fila"><span>Ciudad / Provincia</span><span>${esc(s.ciudad) || "—"} / ${esc(s.provincia) || "—"}</span></div>
+      <div class="detalle-fila"><span>Teléfono</span><span>${esc(s.telefono) || "—"}</span></div>
+      <div class="detalle-fila"><span>Email</span><span>${esc(s.email) || "—"}</span></div>
+      ${s.nacido_exterior ? `<div class="detalle-fila"><span>Nacido en el exterior</span><span>${esc(s.ciudad_nacimiento) || "—"}, ${esc(s.pais_nacimiento) || "—"} (${s.anios_residencia_argentina ?? "—"} años en Argentina)</span></div>` : ""}
+    </div>
+    <div class="detalle-bloque">
+      <h4>Familia</h4>
+      <div class="detalle-fila"><span>Padre</span><span>${esc(s.nombre_padre) || "—"}</span></div>
+      <div class="detalle-fila"><span>Madre</span><span>${esc(s.nombre_madre) || "—"}</span></div>
+      <div class="detalle-fila"><span>Estado civil</span><span>${esc(s.estado_civil) || "—"}</span></div>
+      ${s.estado_civil === "Casado/a" ? `<div class="detalle-fila"><span>Cónyuge</span><span>${esc(s.nombre_conyuge) || "—"} (${fmtFecha(s.fecha_nacimiento_conyuge)})</span></div>` : ""}
+      <div class="detalle-fila"><span>Hijos</span><span>${(s.hijos || []).length ? (s.hijos.map((h) => `${esc(h.nombre)} (${h.edad ?? "?"})`).join(", ")) : "—"}</span></div>
+    </div>
+    <div class="detalle-bloque">
+      <h4>Formación y profesión</h4>
+      <div class="detalle-fila"><span>Nivel de estudios</span><span>${esc(s.nivel_estudios) || "—"}</span></div>
+      <div class="detalle-fila"><span>Carrera</span><span>${esc(s.carrera) || "—"}</span></div>
+      <div class="detalle-fila"><span>Título</span><span>${esc(s.titulo_obtenido) || "—"}</span></div>
+      <div class="detalle-fila"><span>Profesión</span><span>${esc(s.profesion) || "—"}</span></div>
+      <div class="detalle-fila"><span>Rubro / Empresa</span><span>${esc(s.rubro) || "—"} / ${esc(s.empresa_contratante) || "—"}</span></div>
+    </div>
+    <div class="detalle-bloque">
+      <h4>Preguntas</h4>
+      <div class="detalle-fila"><span>Afiliaciones</span><span>${esc(s.afiliaciones_religiosas_culturales) || "—"}</span></div>
+      <div class="detalle-fila"><span>Corrientes de pensamiento</span><span>${esc(s.corrientes_pensamiento) || "—"}</span></div>
+      <div class="detalle-fila"><span>Familiares masones</span><span>${esc(s.familiares_masones) || "—"}</span></div>
+    </div>
+    <div class="detalle-bloque">
+      <h4>Foto, firma y DNI</h4>
+      <div class="detalle-fotos">
+        ${fotoPerfil ? `<img src="${fotoPerfil}" alt="Foto de perfil">` : ""}
+        ${fotoDni ? `<img src="${fotoDni}" alt="DNI">` : ""}
+      </div>
+      <div class="detalle-firma">${firmaCand ? `<img src="${firmaCand}" alt="Firma">` : ""}</div>
+      <div class="detalle-fila" style="margin-top:8px;"><span>Aclaración</span><span>${esc(s.firma_aclaracion) || "—"}</span></div>
+      <div class="detalle-fila"><span>Lugar y fecha</span><span>${esc(s.firma_lugar) || "—"}, ${fmtFecha(s.firma_fecha)}</span></div>
+    </div>
+    ${s.estado === "proponente_designado" || s.estado === "aplomada" || s.estado === "aprobada" ? `
+    <div class="detalle-bloque">
+      <h4>Maestro Proponente</h4>
+      <div class="detalle-fila"><span>Nombre</span><span>${esc(nombreProponente(s.proponente_id))}</span></div>
+      <div class="detalle-fila"><span>Fecha de entrega</span><span>${fmtFecha(s.proponente_fecha_entrega)}</span></div>
+    </div>` : ""}
+    ${s.estado === "aprobada" ? `
+    <div class="detalle-bloque">
+      <h4>Resolución de la Logia</h4>
+      <div class="detalle-fila"><span>Fecha de tratamiento</span><span>${fmtFecha(s.fecha_tratamiento)}</span></div>
+      <div class="detalle-fila"><span>Aprobada el</span><span>${fmtFechaHora(s.aprobada_en)}</span></div>
+    </div>` : ""}
+    ${s.estado === "descartada" ? `
+    <div class="detalle-bloque">
+      <h4>Descarte</h4>
+      <div class="detalle-fila"><span>Motivo</span><span>${esc(s.motivo_descarte)}</span></div>
+      <div class="detalle-fila"><span>Fecha</span><span>${fmtFechaHora(s.descartada_en)}</span></div>
+    </div>` : ""}
+  `;
+
+  $("detalle-footer").innerHTML = `<button type="button" class="primary" style="width:auto;" id="btn-pdf-detalle">Descargar PDF</button>`;
+  $("btn-pdf-detalle").addEventListener("click", () => descargarPdf(s.id));
+}
+$("btn-cerrar-detalle").addEventListener("click", () => $("modal-detalle").classList.remove("abierto"));
+$("modal-detalle").addEventListener("click", (e) => { if (e.target.id === "modal-detalle") $("modal-detalle").classList.remove("abierto"); });
+
+async function signedUrlMedia(path) {
+  if (!path) return null;
+  const { data, error } = await db.storage.from(BUCKET_MEDIA).createSignedUrl(path, 600);
+  if (error) { console.error(error); return null; }
+  return data.signedUrl;
+}
+async function signedUrlFirma(path) {
+  if (!path) return null;
+  const { data, error } = await db.storage.from(BUCKET_FIRMAS).createSignedUrl(path, 600);
+  if (error) { console.error(error); return null; }
+  return data.signedUrl;
+}
+
+// ============================================================
+// ACCIÓN: designar proponente
+// ============================================================
+async function abrirModalProponente(id) {
+  idParaAccion = id;
+  const s = solicitudesCache.find((x) => x.id === id);
+  $("error-proponente").textContent = "";
+  $("sel-proponente").innerHTML = maestros.map((m) => `<option value="${m.id}">${esc(m.nombre_completo)}</option>`).join("")
+    || '<option value="">No hay HH∴ de grado Maestro cargados</option>';
+  $("aviso-negro-proponente").innerHTML = '<p class="muted" style="margin-top:0;">Chequeando Libro Negro…</p>';
+  $("modal-proponente").classList.add("abierto");
+
+  const matches = await chequearLibroNegro(s.dni, s.apellido, s.nombre);
+  $("aviso-negro-proponente").innerHTML = matches.length ? renderAvisoNegro(matches) : "";
+}
+$("btn-cancelar-proponente").addEventListener("click", () => $("modal-proponente").classList.remove("abierto"));
+$("btn-confirmar-proponente").addEventListener("click", async () => {
+  const proponenteId = $("sel-proponente").value;
+  if (!proponenteId) { $("error-proponente").textContent = "Elegí un H∴."; return; }
+  const btn = $("btn-confirmar-proponente");
+  btn.disabled = true; btn.textContent = "Designando…";
+  try {
+    const { error } = await db.rpc("admision_designar_proponente", { p_solicitud_id: idParaAccion, p_proponente_id: proponenteId });
+    if (error) throw error;
+    $("modal-proponente").classList.remove("abierto");
+    toast("Proponente designado.");
+    await cargarListado();
+  } catch (e) {
+    console.error(e);
+    $("error-proponente").textContent = "No se pudo designar al proponente.";
+  } finally {
+    btn.disabled = false; btn.textContent = "Designar";
+  }
+});
+
+// ============================================================
+// ACCIÓN: marcar aplomada (proponente)
+// ============================================================
+async function marcarAplomada(id) {
+  if (!confirm("¿Marcar esta solicitud como Aplomada? Se incrusta tu firma y la fecha de hoy.")) return;
+  try {
+    const { error } = await db.rpc("admision_marcar_aplomada", { p_solicitud_id: id });
+    if (error) throw error;
+    toast("Solicitud marcada como Aplomada.");
+    await cargarListado();
+  } catch (e) {
+    console.error(e);
+    toast("No se pudo marcar como Aplomada.", true);
+  }
+}
+
+// ============================================================
+// ACCIÓN: aprobar
+// ============================================================
+function abrirModalAprobar(id) {
+  idParaAccion = id;
+  $("error-aprobar").textContent = "";
+  $("f-fecha-tratamiento").value = hoyISO();
+  $("modal-aprobar").classList.add("abierto");
+}
+$("btn-cancelar-aprobar").addEventListener("click", () => $("modal-aprobar").classList.remove("abierto"));
+$("btn-confirmar-aprobar").addEventListener("click", async () => {
+  const fecha = $("f-fecha-tratamiento").value;
+  if (!fecha) { $("error-aprobar").textContent = "Elegí la fecha de tratamiento."; return; }
+  const btn = $("btn-confirmar-aprobar");
+  btn.disabled = true; btn.textContent = "Aprobando…";
+  try {
+    const { error } = await db.rpc("admision_aprobar", { p_solicitud_id: idParaAccion, p_fecha_tratamiento: fecha });
+    if (error) throw error;
+    $("modal-aprobar").classList.remove("abierto");
+    toast("Solicitud aprobada.");
+    await cargarListado();
+  } catch (e) {
+    console.error(e);
+    $("error-aprobar").textContent = "No se pudo aprobar la solicitud.";
+  } finally {
+    btn.disabled = false; btn.textContent = "Aprobar";
+  }
+});
+
+// ============================================================
+// ACCIÓN: descartar
+// ============================================================
+function abrirModalDescartar(id) {
+  idParaAccion = id;
+  $("error-descartar").textContent = "";
+  $("f-motivo-descarte").value = "";
+  $("modal-descartar").classList.add("abierto");
+}
+$("btn-cancelar-descartar").addEventListener("click", () => $("modal-descartar").classList.remove("abierto"));
+$("btn-confirmar-descartar").addEventListener("click", async () => {
+  const motivo = $("f-motivo-descarte").value.trim();
+  if (!motivo) { $("error-descartar").textContent = "El motivo es obligatorio."; return; }
+  const btn = $("btn-confirmar-descartar");
+  btn.disabled = true; btn.textContent = "Descartando…";
+  try {
+    const { error } = await db.rpc("admision_descartar", { p_solicitud_id: idParaAccion, p_motivo: motivo });
+    if (error) throw error;
+    $("modal-descartar").classList.remove("abierto");
+    toast("Solicitud descartada. Pasó al Libro Negro.");
+    await cargarListado();
+  } catch (e) {
+    console.error(e);
+    $("error-descartar").textContent = "No se pudo descartar la solicitud.";
+  } finally {
+    btn.disabled = false; btn.textContent = "Descartar";
+  }
+});
+
+function hoyISO() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// ============================================================
+// EXPORTAR PDF (réplica del F.117) — mismo patrón que los recibos
+// de Tesorería (html2canvas + jsPDF), con el algoritmo de "corte
+// seguro" para varias páginas que usa Biblioteca de planchas, porque
+// acá el contenido es mucho más largo que un recibo.
+// ============================================================
+async function dataUriDesdeUrl(url) {
+  if (!url) return null;
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+async function construirHtmlSolicitud(s) {
+  const [fotoPerfil, fotoDni, firmaCand] = await Promise.all([
+    signedUrlMedia(s.foto_perfil_url).then(dataUriDesdeUrl),
+    signedUrlMedia(s.foto_dni_url).then(dataUriDesdeUrl),
+    signedUrlMedia(s.firma_candidato_url).then(dataUriDesdeUrl),
+  ]);
+
+  let firmaProponente = null, nombreProp = null;
+  let firmaVm = null, nombreVm = null, firmaSec = null, nombreSec = null;
+  const idsAResolver = [s.proponente_id, s.firmante_vm_id, s.firmante_secretario_id].filter(Boolean);
+  if (idsAResolver.length) {
+    const { data: hs } = await db.from("hermanos").select("id,nombre_completo,firma_url").in("id", idsAResolver);
+    const buscar = (id) => (hs || []).find((h) => h.id === id);
+    if (s.proponente_id) { const h = buscar(s.proponente_id); nombreProp = h?.nombre_completo; firmaProponente = h?.firma_url ? await signedUrlFirma(h.firma_url).then(dataUriDesdeUrl) : null; }
+    if (s.firmante_vm_id) { const h = buscar(s.firmante_vm_id); nombreVm = h?.nombre_completo; firmaVm = h?.firma_url ? await signedUrlFirma(h.firma_url).then(dataUriDesdeUrl) : null; }
+    if (s.firmante_secretario_id) { const h = buscar(s.firmante_secretario_id); nombreSec = h?.nombre_completo; firmaSec = h?.firma_url ? await signedUrlFirma(h.firma_url).then(dataUriDesdeUrl) : null; }
+  }
+
+  const fila = (label, valor) => `<div class="f117-fila"><span class="f117-label">${esc(label)}</span><span class="f117-valor">${esc(valor) || "—"}</span></div>`;
+  const bloque = (titulo, contenido) => `<div class="f117-bloque"><h3>${esc(titulo)}</h3>${contenido}</div>`;
+
+  const div = document.createElement("div");
+  div.className = "f117-hoja";
+  div.style.width = "180mm";
+  div.style.maxWidth = "100vw";
+  div.style.boxSizing = "border-box";
+  div.innerHTML = `
+    <style>
+      .f117-hoja { font-family: Georgia, 'Times New Roman', serif; color:#1c1c1c; background:#fdfaf2; padding:6mm; }
+      .f117-hoja .f117-header { text-align:center; margin-bottom:16px; }
+      .f117-hoja .f117-header .simbolo { font-size:1.6rem; color:#8a6d2f; }
+      .f117-hoja .f117-header h1 { font-size:1.3rem; margin:4px 0 2px; }
+      .f117-hoja .f117-header .sub { font-size:.85rem; color:#555; }
+      .f117-hoja .f117-estado { display:inline-block; margin-top:8px; padding:3px 12px; border:1px solid #8a6d2f; border-radius:14px; font-size:.72rem; letter-spacing:.05em; text-transform:uppercase; }
+      .f117-bloque { margin-bottom:16px; page-break-inside:avoid; }
+      .f117-bloque h3 { font-size:.78rem; letter-spacing:.06em; text-transform:uppercase; color:#8a6d2f; border-bottom:1px solid #c9a85d; padding-bottom:4px; margin:0 0 8px; }
+      .f117-fila { display:flex; justify-content:space-between; gap:10px; font-size:.86rem; padding:3px 0; }
+      .f117-label { color:#555; flex-shrink:0; }
+      .f117-valor { text-align:right; }
+      .f117-fotos { display:flex; gap:14px; margin-top:6px; }
+      .f117-fotos img { width:110px; height:110px; object-fit:cover; border:1px solid #ccc; border-radius:4px; }
+      .f117-firma-box { display:inline-block; text-align:center; margin-right:24px; margin-top:10px; vertical-align:top; }
+      .f117-firma-box img { display:block; max-width:150px; max-height:70px; margin:0 auto 4px; }
+      .f117-firma-linea { width:150px; border-top:1px solid #444; margin-top:4px; padding-top:3px; font-size:.74rem; }
+      .f117-declaracion { font-size:.78rem; color:#444; line-height:1.5; }
+    </style>
+
+    <div class="f117-header">
+      <div class="simbolo">△</div>
+      <h1>Resp∴ Log∴ José Hernández N° 75</h1>
+      <div class="sub">Solicitud de Admisión — F.117</div>
+      <div class="f117-estado">${esc(ESTADOS.find((e) => e.key === s.estado)?.label || s.estado)}</div>
+    </div>
+
+    ${bloque("Datos personales", `
+      ${fila("Nombre completo", nombreCompleto(s))}
+      ${fila("DNI", s.dni)}
+      ${fila("Fecha de nacimiento", fmtFecha(s.fecha_nacimiento))}
+      ${fila("Domicilio", s.domicilio)}
+      ${fila("Ciudad / Provincia", `${s.ciudad || "—"} / ${s.provincia || "—"}`)}
+      ${fila("Teléfono", s.telefono)}
+      ${fila("Email", s.email)}
+      ${s.nacido_exterior ? fila("Nacido en el exterior", `${s.ciudad_nacimiento || "—"}, ${s.pais_nacimiento || "—"} (${s.anios_residencia_argentina ?? "—"} años en Argentina)`) : ""}
+    `)}
+
+    ${bloque("Información familiar", `
+      ${fila("Padre", s.nombre_padre)}
+      ${fila("Madre", s.nombre_madre)}
+      ${fila("Estado civil", s.estado_civil)}
+      ${s.estado_civil === "Casado/a" ? fila("Cónyuge", `${s.nombre_conyuge || "—"} (${fmtFecha(s.fecha_nacimiento_conyuge)})`) : ""}
+      ${fila("Hijos", (s.hijos || []).length ? s.hijos.map((h) => `${h.nombre} (${h.edad ?? "?"})`).join(", ") : "—")}
+    `)}
+
+    ${bloque("Formación académica", `
+      ${fila("Nivel de estudios", s.nivel_estudios)}
+      ${fila("Carrera / estudios", s.carrera)}
+      ${fila("Título obtenido", s.titulo_obtenido)}
+    `)}
+
+    ${bloque("Información profesional", `
+      ${fila("Profesión / ocupación", s.profesion)}
+      ${fila("Rubro", s.rubro)}
+      ${fila("Empresa contratante", s.empresa_contratante)}
+    `)}
+
+    ${bloque("Preguntas", `
+      <p class="f117-declaracion"><strong>Asociaciones religiosas, culturales o benéficas:</strong> ${esc(s.afiliaciones_religiosas_culturales) || "—"}</p>
+      <p class="f117-declaracion"><strong>Corrientes de pensamiento:</strong> ${esc(s.corrientes_pensamiento) || "—"}</p>
+      <p class="f117-declaracion"><strong>Familiares masones:</strong> ${esc(s.familiares_masones) || "—"}</p>
+    `)}
+
+    ${bloque("Declaración jurada", `
+      <p class="f117-declaracion">
+        El solicitante declaró bajo juramento que los datos consignados son verdaderos, que conoce en términos
+        generales la naturaleza y los principios de la Masonería, que no posee antecedentes penales y que la
+        documentación adjunta es auténtica. Declaración aceptada: ${s.acepta_declaracion ? "Sí" : "No"}.
+      </p>
+    `)}
+
+    ${bloque("Foto, DNI y firma del candidato", `
+      <div class="f117-fotos">
+        ${fotoPerfil ? `<img src="${fotoPerfil}" alt="Foto de perfil">` : ""}
+        ${fotoDni ? `<img src="${fotoDni}" alt="DNI">` : ""}
+      </div>
+      <div class="f117-firma-box">
+        ${firmaCand ? `<img src="${firmaCand}" alt="Firma">` : ""}
+        <div class="f117-firma-linea">${esc(s.firma_aclaracion) || "Firma del candidato"}</div>
+      </div>
+      ${fila("Lugar y fecha", `${s.firma_lugar || "—"}, ${fmtFecha(s.firma_fecha)}`)}
+    `)}
+
+    ${(s.proponente_id) ? bloque("Maestro Proponente", `
+      ${fila("Nombre", nombreProp)}
+      ${fila("Fecha de entrega", fmtFecha(s.proponente_fecha_entrega))}
+      <div class="f117-firma-box">
+        ${firmaProponente ? `<img src="${firmaProponente}" alt="Firma proponente">` : ""}
+        <div class="f117-firma-linea">${esc(nombreProp) || "Firma del proponente"}</div>
+      </div>
+    `) : ""}
+
+    ${s.estado === "aprobada" ? bloque("A completar por la Logia", `
+      ${fila("Logia", "José Hernández")}
+      ${fila("Número", "75")}
+      ${fila("Provincia", "Buenos Aires")}
+      ${fila("Fecha de tratamiento", fmtFecha(s.fecha_tratamiento))}
+      <div>
+        <div class="f117-firma-box">
+          ${firmaVm ? `<img src="${firmaVm}" alt="Firma VM">` : ""}
+          <div class="f117-firma-linea">${esc(nombreVm) || "Venerable Maestro"}</div>
+        </div>
+        <div class="f117-firma-box">
+          ${firmaSec ? `<img src="${firmaSec}" alt="Firma Secretario">` : ""}
+          <div class="f117-firma-linea">${esc(nombreSec) || "Secretario"}</div>
+        </div>
+      </div>
+    `) : ""}
+
+    ${s.estado === "descartada" ? bloque("Libro Negro", `
+      ${fila("Motivo", s.motivo_descarte)}
+      ${fila("Fecha", fmtFechaHora(s.descartada_en))}
+    `) : ""}
+  `;
+  return div;
+}
+
+async function generarPdfDesdeElemento(elemento) {
+  document.body.appendChild(elemento);
+  await document.fonts.ready;
+  await new Promise((r) => setTimeout(r, 60));
+  let canvas;
+  try {
+    canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: "#fdfaf2" });
+  } finally {
+    elemento.remove();
+  }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const marginLeft = 15, marginRight = 15, marginTop = 15, marginBottom = 18;
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const usableW = pageW - marginLeft - marginRight;
+  const usableH = pageH - marginTop - marginBottom;
+
+  const imgW = usableW;
+  const pxPerMm = canvas.width / imgW;
+  const pageHpx = usableH * pxPerMm;
+
+  const ctxOrigen = canvas.getContext("2d");
+  function filaEsBlanca(y) {
+    const { data } = ctxOrigen.getImageData(0, y, canvas.width, 1);
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) return false;
+    }
+    return true;
+  }
+  function corteSeguro(objetivoY) {
+    const ventana = Math.round(pxPerMm * 12);
+    for (let d = 0; d <= ventana; d++) {
+      const arriba = objetivoY - d;
+      if (arriba > 0 && filaEsBlanca(arriba)) return arriba;
+      const abajo = objetivoY + d;
+      if (abajo < canvas.height && filaEsBlanca(abajo)) return abajo;
+    }
+    return objetivoY;
+  }
+
+  let renderedPx = 0, primera = true;
+  while (renderedPx < canvas.height) {
+    const objetivo = renderedPx + pageHpx;
+    let finPx = objetivo >= canvas.height ? canvas.height : corteSeguro(Math.round(objetivo));
+    if (finPx <= renderedPx) finPx = Math.min(Math.round(objetivo), canvas.height);
+    const sliceHpx = finPx - renderedPx;
+    const slice = document.createElement("canvas");
+    slice.width = canvas.width;
+    slice.height = sliceHpx;
+    slice.getContext("2d").drawImage(canvas, 0, renderedPx, canvas.width, sliceHpx, 0, 0, canvas.width, sliceHpx);
+
+    const sliceHmm = sliceHpx / pxPerMm;
+    if (!primera) pdf.addPage();
+    pdf.addImage(slice.toDataURL("image/jpeg", 0.92), "JPEG", marginLeft, marginTop, imgW, sliceHmm);
+
+    renderedPx = finPx;
+    primera = false;
+  }
+
+  return pdf.output("blob");
+}
+
+async function descargarPdf(id) {
+  const s = solicitudesCache.find((x) => x.id === id);
+  if (!s) return;
+  toast("Generando PDF…");
+  try {
+    const div = await construirHtmlSolicitud(s);
+    const blob = await generarPdfDesdeElemento(div);
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) {
+    console.error(e);
+    toast("No se pudo generar el PDF.", true);
+  }
+}
+</script>
+</body>
+</html>
