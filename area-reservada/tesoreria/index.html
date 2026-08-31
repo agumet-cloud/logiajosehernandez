@@ -754,7 +754,10 @@ function configurarTabsPorRol() {
   $("subtitulo").textContent = puedeCargar
     ? "Movimientos, cuotas y recibos"
     : (esMaestro ? "Libro completo y tu cuenta" : "Tu cuenta");
-  if (!puedeVerTodo) activarTab("cuenta");
+  // Pestaña inicial: quien no es Tesorero, Secretario ni Venerable Maestro
+  // arranca en "Mi cuenta" (primero cuánto debe), aunque sea Maestro y por
+  // eso también pueda ver el Libro completo y la Grilla.
+  if (!puedeCargar) activarTab("cuenta");
 }
 
 // ============================================================
