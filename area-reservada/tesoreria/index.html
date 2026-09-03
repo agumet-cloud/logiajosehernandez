@@ -791,6 +791,11 @@ function configurarTabsPorRol() {
   $("tab-libro").style.display = puedeVerTodo ? "" : "none";
   $("tab-grilla").style.display = puedeVerTodo ? "" : "none";
   $("tab-form").style.display = puedeCargar ? "" : "none";
+  // Configurar cuota/cápita y exportar la imagen de deuda son acciones
+  // administrativas: solo Tesorero, Secretario o Venerable Maestro, aunque
+  // cualquier Maestro pueda ver la pestaña donde viven estos botones.
+  $("btn-config-valores").style.display = puedeCargar ? "" : "none";
+  $("btn-exportar-deuda").style.display = puedeCargar ? "" : "none";
   $("subtitulo").textContent = puedeCargar
     ? "Movimientos, cuotas y recibos"
     : (esMaestro ? "Libro completo y tu cuenta" : "Tu cuenta");
