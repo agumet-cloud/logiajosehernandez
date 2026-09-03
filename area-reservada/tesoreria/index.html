@@ -166,6 +166,25 @@
   .recibo .firma .cargo-firma { font-family:Georgia,sans-serif; font-size:.72rem; color:#7a6a45; text-transform:uppercase; letter-spacing:.05em; }
   .recibo .numero-recibo { text-align:right; font-family:Georgia,sans-serif; font-size:.72rem; color:#7a6a45; margin-bottom:10px; }
 
+  /* ---- imagen de "estado de deuda" para compartir (reusa .recibo) ---- */
+  .recibo .subtitulo-deuda {
+    text-align:center; color:#6b5f45; font-family:Georgia,sans-serif;
+    font-size:.8rem; margin:-8px 0 18px;
+  }
+  .recibo .deuda-lista { font-size:.98rem; }
+  .recibo .deuda-fila {
+    display:flex; justify-content:space-between; gap:14px;
+    padding:7px 0; border-bottom:1px solid #e5dcc0;
+  }
+  .recibo .deuda-fila:last-child { border-bottom:none; }
+  .recibo .deuda-nombre { color:#2a2318; }
+  .recibo .deuda-estado { font-weight:600; white-space:nowrap; text-align:right; }
+  .recibo .deuda-estado.debe { color:#a4402f; }
+  .recibo .deuda-estado.aldia { color:#3f7a52; }
+  .recibo .deuda-estado.sinrevisar { color:#8a7d5f; font-weight:400; font-style:italic; }
+  .recibo .deuda-total-fila { font-weight:600; font-size:1.08rem; }
+  .recibo .deuda-total-fila .deuda-estado { color:#a4402f; }
+
   .nota-demo { font-size:.78rem; color:var(--muted); margin-top:10px; text-align:center; }
 
   /* ---- grilla anual ---- */
@@ -530,7 +549,10 @@
       <div class="card">
         <div class="card-header">
           <h2 id="gr-titulo-cuotas">Cuotas</h2>
-          <span class="muted" style="font-size:.78rem;">Deuda total de la logia: <b id="gr-deuda-total" style="color:var(--danger);">—</b></span>
+          <span class="muted" style="font-size:.78rem; display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+            Deuda total de la logia: <b id="gr-deuda-total" style="color:var(--danger);">—</b>
+            <button type="button" class="ghost" id="btn-exportar-deuda" style="width:auto;">🖼 Exportar imagen</button>
+          </span>
         </div>
         <div class="tabla-scroll" style="padding:8px 0 18px;">
           <table class="grilla" id="gr-tabla-cuotas"></table>
@@ -1317,6 +1339,83 @@ async function generarPdfDesdeElemento(elemento) {
   return pdf.output("blob");
 }
 
+// Captura un elemento fuera de pantalla como PNG — mismo mecanismo que
+// generarPdfDesdeElemento (hay que dejarlo en el flujo normal del documento,
+// nunca position:fixed/absolute, para que html2canvas mida bien el alto).
+async function generarPngDesdeElemento(elemento) {
+  document.body.appendChild(elemento);
+  await document.fonts.ready;
+  await new Promise((r) => setTimeout(r, 60));
+  let canvas;
+  try {
+    canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: "#fdfaf2" });
+  } finally {
+    elemento.remove();
+  }
+  return await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+}
+
+// ---- imagen de "estado de deuda" para compartir (ej: grupo de HH∴ Maestros) ----
+function construirImagenDeudaHTML() {
+  const filas = filasDeudaOrdenadas();
+
+  const filasHtml = filas.map((f) => {
+    const { texto, clase } = textoYClaseDeuda(f.deuda);
+    return `<div class="deuda-fila">
+      <span class="deuda-nombre">${esc(f.hermano.nombre_completo)}</span>
+      <span class="deuda-estado ${clase}">${texto}</span>
+    </div>`;
+  }).join("");
+
+  let deudaTotal = 0;
+  filas.forEach((f) => { if (f.deuda !== null && Number(f.deuda) > 0) deudaTotal += Number(f.deuda); });
+
+  const div = document.createElement("div");
+  div.className = "recibo";
+  div.style.width = "480px";
+  div.style.maxWidth = "100vw";
+  div.style.boxSizing = "border-box";
+  div.innerHTML = `
+    <div class="numero-recibo">Actualizado el ${fmtFecha(hoyISO())}</div>
+    <div class="simbolo">△</div>
+    <div class="titulo-recibo">Resp∴ Log∴</div>
+    <div class="nombre-logia">José Hernández N° 75</div>
+    <div class="subtitulo-deuda">Estado de deuda por H∴</div>
+    <div class="deuda-lista">${filasHtml}</div>
+    <hr class="divisor">
+    <div class="fila deuda-total-fila"><span class="label-r">Deuda total de la logia</span><span class="deuda-estado">${fmtMoneda(deudaTotal)}</span></div>
+  `;
+  return div;
+}
+
+async function exportarImagenDeuda() {
+  const btn = $("btn-exportar-deuda");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Generando…";
+  try {
+    const div = construirImagenDeudaHTML();
+    const blob = await generarPngDesdeElemento(div);
+    if (!blob) throw new Error("No se pudo generar la imagen.");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `deuda-logia-${hoyISO()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast("Imagen descargada. Ya la podés compartir por WhatsApp.");
+  } catch (e) {
+    console.error(e);
+    toast("No se pudo generar la imagen.", true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+$("btn-exportar-deuda").addEventListener("click", exportarImagenDeuda);
+
 function textoSaldo(deuda) {
   if (deuda === null || deuda === undefined) return "Sin revisar";
   const v = Number(deuda);
@@ -1516,11 +1615,13 @@ function claseCeldaCuota(hermanoId, adeudaDesde, anio, mes) {
   return pagado ? "i-pagado" : "i-debe";
 }
 
-function renderGrillaCuotas() {
+// Mismo orden que usan la Grilla y la imagen para compartir: quien más debe
+// primero, "sin revisar" siempre al final (nunca junto a los que están al día).
+function filasDeudaOrdenadas() {
   const activos = hermanosCache.filter((h) => h.activo);
   const tesHermanoMap = new Map(tesoreriaHermanosCache.map((t) => [t.hermano_id, t.adeuda_desde]));
 
-  const filas = activos.map((h) => ({
+  return activos.map((h) => ({
     hermano: h,
     adeudaDesde: tesHermanoMap.get(h.id) || null,
     deuda: deudaPorHermano.get(h.id) ?? null,
@@ -1530,6 +1631,20 @@ function renderGrillaCuotas() {
     if (b.deuda === null) return -1;
     return Number(b.deuda) - Number(a.deuda);
   });
+}
+
+// Mismo criterio de texto y color en los tres lugares que muestran una deuda
+// puntual: la Grilla, "Mi cuenta" (vía textoSaldo) y la imagen para compartir.
+function textoYClaseDeuda(deuda) {
+  if (deuda === null) return { texto: "Sin revisar", clase: "sinrevisar" };
+  const v = Number(deuda);
+  if (v > 0) return { texto: fmtMoneda(v), clase: "debe" };
+  if (v === 0) return { texto: "Al día", clase: "aldia" };
+  return { texto: `A favor ${fmtMoneda(Math.abs(v))}`, clase: "aldia" };
+}
+
+function renderGrillaCuotas() {
+  const filas = filasDeudaOrdenadas();
 
   let deudaTotal = 0;
   filas.forEach((f) => { if (f.deuda !== null && Number(f.deuda) > 0) deudaTotal += Number(f.deuda); });
@@ -1543,17 +1658,7 @@ function renderGrillaCuotas() {
       return `<td><span class="celda ${clase}"></span></td>`;
     }).join("");
 
-    let deudaTexto, deudaClase;
-    if (f.deuda === null) {
-      deudaTexto = "Sin revisar"; deudaClase = "sinrevisar";
-    } else if (Number(f.deuda) > 0) {
-      deudaTexto = fmtMoneda(f.deuda); deudaClase = "debe";
-    } else if (Number(f.deuda) === 0) {
-      deudaTexto = "Al día"; deudaClase = "aldia";
-    } else {
-      deudaTexto = `A favor ${fmtMoneda(Math.abs(f.deuda))}`; deudaClase = "aldia";
-    }
-
+    const { texto: deudaTexto, clase: deudaClase } = textoYClaseDeuda(f.deuda);
     const clicable = puedeCargar ? "clicable" : "";
     const dataAttr = puedeCargar ? ` data-hermano="${f.hermano.id}"` : "";
     return `<tr><td class="nombre-hermano">${esc(f.hermano.nombre_completo)}</td>${celdas}<td class="debe-total ${deudaClase} ${clicable}"${dataAttr}>${deudaTexto}</td></tr>`;
