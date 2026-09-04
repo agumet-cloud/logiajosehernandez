@@ -602,6 +602,7 @@
         <button type="button" class="ghost" id="btn-pagina-ant" title="Página anterior">‹</button>
         <span class="modal-pdf-pagina" id="modal-pdf-pagina"></span>
         <button type="button" class="ghost" id="btn-pagina-sig" title="Página siguiente">›</button>
+        <button type="button" class="ghost" id="btn-compartir-recibo" style="display:none;">Compartir</button>
         <a href="#" target="_blank" rel="noopener" id="link-abrir-pestana">Abrir en pestaña nueva</a>
         <button type="button" class="ghost" id="btn-cerrar-visor">Cerrar ✕</button>
       </div>
@@ -669,6 +670,8 @@ let paginaPdfActual = 1;
 let totalPaginasPdf = 0;
 let renderEnCurso = false;
 let renderPendiente = null;
+let tituloDocActual = "";
+let docActualEsRecibo = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -1051,7 +1054,7 @@ function wirearAccionesMovimiento(cont) {
       e.preventDefault();
       const m = movimientosCache.find((x) => String(x.id) === String(a.dataset.verDoc));
       if (!m) return;
-      if (m.tipo === "cuota") abrirDocumento(BUCKET_RECIBOS, m.recibo_url, `Recibo — ${nombreDe(m.hermano_id)} (${fmtMes(m.periodo)})`);
+      if (m.tipo === "cuota") abrirDocumento(BUCKET_RECIBOS, m.recibo_url, `Recibo — ${nombreDe(m.hermano_id)} (${fmtMes(m.periodo)})`, true);
       else abrirDocumento(BUCKET_COMPROBANTES, m.comprobante_url, `Comprobante — Delegación (${fmtMes(m.periodo)})`);
     });
   });
@@ -1823,12 +1826,13 @@ async function renderPaginaPdf(numeroPagina) {
   }
 }
 
-async function abrirDocumento(bucket, path, titulo) {
+async function abrirDocumento(bucket, path, titulo, esRecibo = false) {
   if (!path) { toast("Todavía no hay archivo para mostrar.", true); return; }
 
   const { data, error } = await db.storage.from(bucket).createSignedUrl(path, 600);
   if (error || !data) { toast("No se pudo generar el link para ver el archivo.", true); console.error(error); return; }
 
+  tituloDocActual = titulo;
   $("modal-pdf-titulo").textContent = titulo;
   $("link-abrir-pestana").href = data.signedUrl;
   $("modal-pdf").classList.add("abierto");
@@ -1836,6 +1840,11 @@ async function abrirDocumento(bucket, path, titulo) {
   const esPdf = /\.pdf$/i.test(path);
   $("btn-pagina-ant").style.display = esPdf ? "" : "none";
   $("btn-pagina-sig").style.display = esPdf ? "" : "none";
+  // "Compartir" solo tiene sentido para el recibo de cuota: es siempre un PDF
+  // de una sola página (el mismo html2canvas+jsPDF de §0.6), así que el
+  // canvas ya renderizado abajo es directamente la imagen a compartir.
+  docActualEsRecibo = esRecibo && esPdf;
+  $("btn-compartir-recibo").style.display = docActualEsRecibo ? "" : "none";
 
   if (esPdf) {
     $("modal-pdf-pagina").textContent = "";
@@ -1867,11 +1876,70 @@ function cerrarVisor() {
   totalPaginasPdf = 0;
   paginaPdfActual = 1;
   renderPendiente = null;
+  docActualEsRecibo = false;
+  tituloDocActual = "";
   const canvas = $("pdf-canvas");
   canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
   $("pdf-imagen").src = "";
 }
 
+// Nombre de archivo legible a partir del título del visor ("Recibo — Fulano
+// de Tal (ene 2026)" → "recibo-fulano-de-tal-ene-2026.png").
+function nombreArchivoDesdeTitulo(titulo) {
+  const base = titulo
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `${base || "recibo"}.png`;
+}
+
+// El recibo ya está renderizado en el canvas de PDF.js (una sola página):
+// en vez de volver a generarlo, se exporta ese mismo canvas como PNG. En el
+// celular, si el navegador soporta compartir archivos (Web Share API), se
+// abre directo la hoja nativa de compartir con WhatsApp como una opción más;
+// si no, se descarga el PNG igual que "Exportar imagen" de la Grilla.
+async function compartirRecibo() {
+  const btn = $("btn-compartir-recibo");
+  const canvas = $("pdf-canvas");
+  if (!docActualEsRecibo || !canvas.width) return;
+
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Generando…";
+  try {
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("No se pudo generar la imagen.");
+    const nombreArchivo = nombreArchivoDesdeTitulo(tituloDocActual);
+    const archivo = new File([blob], nombreArchivo, { type: "image/png" });
+
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      try {
+        await navigator.share({ files: [archivo], title: tituloDocActual });
+      } catch (err) {
+        if (err && err.name !== "AbortError") throw err;
+      }
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast("Imagen descargada. Ya la podés compartir por WhatsApp.");
+    }
+  } catch (e) {
+    console.error(e);
+    toast("No se pudo generar la imagen para compartir.", true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+$("btn-compartir-recibo").addEventListener("click", compartirRecibo);
 $("btn-cerrar-visor").addEventListener("click", cerrarVisor);
 $("btn-pagina-ant").addEventListener("click", () => {
   if (paginaPdfActual > 1) renderPaginaPdf(paginaPdfActual - 1);
