@@ -172,6 +172,9 @@
   .history-item .meta span{font-size:11px;color:var(--muted);}
   .modal-overlay{position:fixed;inset:0;background:rgba(3,17,12,.7);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;}
   .modal-card{background:var(--green-1);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:460px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.5);color:var(--cream);}
+  .modal-card.acta-modal{max-width:640px;}
+  @media(min-width:860px){ .modal-card.acta-modal{max-width:75vw;} }
+  @media(min-width:1300px){ .modal-card.acta-modal{max-width:980px;} }
   .sign-tabs{display:flex;gap:6px;margin-bottom:12px;}
   .sign-tabs button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--green-2);font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted);}
   .sign-tabs button.on{background:var(--gold);color:var(--green-0);border-color:var(--gold);}
@@ -694,7 +697,7 @@ function renderConfig(main, toolbar){
 function renderGradoConfig(g){
   const gd = state.config.grados[g];
   return `
-    <div style="border-top:1px solid var(--borde);padding-top:10px;margin-top:10px;">
+    <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px;">
       <strong style="font-size:13px;">${gd.label}</strong>
       <div class="row2" style="margin-top:8px;">
         <div class="field"><label>Tratamiento del presidente</label><input id="cfg-g${g}-pres" type="text" value="${esc(gd.presidente)}"></div>
@@ -748,7 +751,7 @@ function groupHistory(list){
   return byYear;
 }
 function crumbBtn(label, onclick){
-  return `<span style="cursor:pointer;color:var(--verde-osc);font-weight:600;" onclick="${onclick}">${esc(label)}</span>`;
+  return `<span style="cursor:pointer;color:var(--gold-soft);font-weight:600;" onclick="${onclick}">${esc(label)}</span>`;
 }
 async function renderHistory(main, toolbar){
   main.innerHTML = `<h2 class="section-title">Libro de actas</h2><div id="hist-list"><p class="muted">Cargando...</p></div>`;
@@ -846,7 +849,7 @@ function openScanModal(){
   overlay.id = 'scan-modal-overlay';
   overlay.innerHTML = `
     <div class="modal-card">
-      <h3 style="margin-top:0;color:var(--verde-osc);">Subir acta escaneada</h3>
+      <h3 style="margin-top:0;color:var(--gold-soft);">Subir acta escaneada</h3>
       <p class="muted" style="margin-top:-6px;">Para actas en papel de antes de usar el aplicativo, o cualquier acta que prefieras archivar como imagen.</p>
       <div class="field"><label>Grado</label>
         <select id="scan-grado">
@@ -1209,9 +1212,9 @@ async function openActaAnteriorModal(){
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'acta-lectura-modal';
-  overlay.innerHTML = `<div class="modal-card" style="max-width:600px;">
+  overlay.innerHTML = `<div class="modal-card acta-modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <h3 style="margin:0;color:var(--verde-osc);">Leer / firmar acta anterior</h3>
+      <h3 style="margin:0;color:var(--gold-soft);">Leer / firmar acta anterior</h3>
       <button class="btn ghost small" onclick="closeActaAnteriorModal()">Cerrar</button>
     </div>
     <div id="acta-lectura-body"></div>
@@ -1235,7 +1238,7 @@ async function renderActaLecturaModalBody(id){
   const record = list.find(h=>h.id===id);
   if(!record){ body.innerHTML = '<p class="muted">No se encontró esta acta.</p>'; return; }
   const lista = state._modalListaGrado || [];
-  const selector = lista.length>1 ? `<select style="width:100%;padding:8px;border:1px solid var(--borde);border-radius:8px;margin-bottom:10px;" onchange="renderActaLecturaModalBody(this.value)">
+  const selector = lista.length>1 ? `<select style="margin-bottom:10px;" onchange="renderActaLecturaModalBody(this.value)">
     ${lista.map(h=>`<option value="${h.id}" ${h.id===id?'selected':''}>N° ${h.numero}/${h.anio} — ${h.fecha}</option>`).join('')}
   </select>` : '';
   const firmas = record.firmada ? await firmasParaMostrar(record) : null;
@@ -1349,12 +1352,15 @@ function buildAutoridadesForGrado(){
 function renderAutoridadesList(){
   const el = document.getElementById('s1-autoridades');
   const gradoActual = parseInt(document.getElementById('s1-grado')?.value || state.acta.grado);
-  const hhOptions = (sel)=> hhDisponibles(gradoActual).map(n=>`<option value="${esc(n)}" ${n===sel?'selected':''}>${esc(n)}</option>`).join('')
-    + `<option value="__vacante__" ${sel==='__vacante__'?'selected':''}>— Cargo no ocupado —</option>`
-    + `<option value="__otro__" ${sel==='__otro__'?'selected':''}>Otro / no está en la lista…</option>`;
+  const hhOptions = (sel)=> {
+    const lista = hhDisponibles(gradoActual);
+    return lista.map(n=>`<option value="${esc(n)}" ${n===sel?'selected':''}>${esc(nombreCorto(n, lista))}</option>`).join('')
+      + `<option value="__vacante__" ${sel==='__vacante__'?'selected':''}>— Cargo no ocupado —</option>`
+      + `<option value="__otro__" ${sel==='__otro__'?'selected':''}>Otro / no está en la lista…</option>`;
+  };
   el.innerHTML = state.acta.autoridades.map((au,i)=>`
     <div class="row2" style="align-items:center;margin-bottom:8px;">
-      <div style="font-size:13px;padding:9px 0;color:var(--verde-osc);font-weight:600;">${esc(au.label)}</div>
+      <div style="font-size:13px;padding:9px 0;color:var(--gold-soft);font-weight:600;">${esc(au.label)}</div>
       <div style="display:flex;gap:6px;align-items:center;">
         <select style="flex:1;" onchange="setAutoridadTitular(${i}, this.value)">${hhOptions(au.titular)}</select>
         <label style="font-size:11px;display:flex;align-items:center;gap:4px;white-space:nowrap;">
@@ -1362,7 +1368,7 @@ function renderAutoridadesList(){
         </label>
       </div>
     </div>
-    ${au.titular==='__otro__' ? `<input type="text" placeholder="Nombre" style="margin:-4px 0 8px;width:100%;padding:8px;border:1px solid var(--borde);border-radius:8px;" onchange="state.acta.autoridades[${i}].titular=this.value">`:''}
+    ${au.titular==='__otro__' ? `<input type="text" placeholder="Nombre" style="margin:-4px 0 8px;" onchange="state.acta.autoridades[${i}].titular=this.value">`:''}
   `).join('');
 }
 function setAutoridadTitular(i,val){ state.acta.autoridades[i].titular = val; if(val==='__otro__') renderAutoridadesList(); }
@@ -1484,8 +1490,9 @@ function combinedHH(){
 }
 function hhSelect(id, selected){
   const temp = (state.acta && state.acta.tempHH) ? state.acta.tempHH : [];
-  const opts = hhPresentesTenida().map(n=>`<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(n)}</option>`).join('');
-  const tempOpts = temp.length ? `<optgroup label="Visitantes de esta tenida">${temp.map(n=>`<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(n)}</option>`).join('')}</optgroup>` : '';
+  const presentes = hhPresentesTenida();
+  const opts = presentes.map(n=>`<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(nombreCorto(n, presentes))}</option>`).join('');
+  const tempOpts = temp.length ? `<optgroup label="Visitantes de esta tenida">${temp.map(n=>`<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(nombreCorto(n, temp))}</option>`).join('')}</optgroup>` : '';
   return `<select id="${id}"><option value="">Elegir…</option>${opts}${tempOpts}<option value="__otro__" ${selected==='__otro__'?'selected':''}>Otro…</option></select>`;
 }
 
@@ -1533,7 +1540,7 @@ function renderItemForm(it){
             </span>`).join('') || '<span class="muted">Todavía nadie comentó esta plancha.</span>'}
           </div>
           <div style="display:flex;gap:6px;margin-top:8px;">
-            <select id="pl-add-coment-${i}" style="flex:1;">${combinedHH().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}<option value="__presidente__">Quien preside</option></select>
+            <select id="pl-add-coment-${i}" style="flex:1;">${(()=>{const l=combinedHH(); return l.map(n=>`<option value="${esc(n)}">${esc(nombreCorto(n,l))}</option>`).join('');})()}<option value="__presidente__">Quien preside</option></select>
             <button class="btn secondary small" onclick="addComentarista(${i})">+ Agregar</button>
           </div>
         </div>
@@ -1814,6 +1821,21 @@ function firstName(full){
     return s.split(',')[0].trim().split(/\s+/)[0];
   }
   return s.split(/\s+/)[0];
+}
+// Nombre para mostrar en los DESPLEGABLES de selección de HH∴: solo el nombre de
+// pila (nos conocemos todos, no hace falta el apellido ahí). El value del <option>
+// sigue siendo el nombre completo, que es lo que se guarda y lo que arma el cuadro
+// de autoridades del acta. Si dos personas de la lista comparten nombre de pila,
+// se agrega la inicial del apellido para no confundirlas.
+function nombreCorto(full, lista){
+  if(!full) return full;
+  const fn = firstName(full);
+  if(lista && lista.some(o=> o!==full && firstName(o)===fn)){
+    const s = full.trim();
+    const apellido = s.includes(',') ? s.split(',')[0].trim() : '';
+    if(apellido) return `${fn} ${apellido[0].toUpperCase()}.`;
+  }
+  return fn;
 }
 function joinNames(arr){
   arr = arr.filter(Boolean);
@@ -2327,7 +2349,7 @@ function renderAsistDetalle(main, toolbar){
       <p>${presentes.map(a=>esc(a.nombre)).join(', ') || '—'}</p>
     </div>
     <div class="card">
-      <h3>Ausentes con disculpa <span class="pill" style="background:#f6ecd7;color:var(--dorado);">${disculpados.length}</span></h3>
+      <h3>Ausentes con disculpa <span class="pill" style="background:rgba(201,168,93,.18);color:var(--gold);">${disculpados.length}</span></h3>
       ${disculpados.length ? disculpados.map(a=>`<p style="margin:4px 0;"><strong>${esc(a.nombre)}</strong>${a.motivo?' — '+esc(a.motivo):''}</p>`).join('') : '<p class="muted">—</p>'}
     </div>
     <div class="card">
@@ -2369,7 +2391,7 @@ function renderAsistResumen(main, toolbar){
           <td>${esc(r.nombre)}</td>
           <td class="num">${r.presentes}</td>
           <td class="num">${r.disculpados}</td>
-          <td class="num" style="${r.ausentes>0?'color:var(--rojo);font-weight:700;':''}">${r.ausentes}</td>
+          <td class="num" style="${r.ausentes>0?'color:var(--danger);font-weight:700;':''}">${r.ausentes}</td>
           <td>${r.total? r.pct+'%' : '—'}
             ${r.total?`<div class="bar-wrap"><div class="bar-fill" style="width:${r.pct}%;"></div></div>`:''}
           </td>
