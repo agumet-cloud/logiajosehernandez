@@ -1484,6 +1484,17 @@ function hhPresentesTenida(){
   if(!filas || !filas.length) return hhDisponibles(state.acta.grado);
   return filas.filter(f=>f.estado==='presente').map(f=>f.nombre);
 }
+// La persona que preside esta tenida es el titular del primer cargo del cuadro
+// de autoridades (M.'.R.'.M.'. / V.'.M.'., o quien haya quedado marcado "Acc."
+// ahí) — el mismo dato que ya carga el secretario en el cuadro. Se usa para
+// sacarla de los desplegables por nombre donde ya está la opción "Quien preside".
+function personaQuePreside(){
+  const au0 = (state.acta.autoridades||[])[0];
+  if(!au0) return null;
+  const t = au0.titular;
+  if(!t || t==='__vacante__' || t==='__otro__') return null;
+  return t;
+}
 function combinedHH(){
   const temp = (state.acta && state.acta.tempHH) ? state.acta.tempHH : [];
   return hhPresentesTenida().concat(temp);
@@ -1540,7 +1551,7 @@ function renderItemForm(it){
             </span>`).join('') || '<span class="muted">Todavía nadie comentó esta plancha.</span>'}
           </div>
           <div style="display:flex;gap:6px;margin-top:8px;">
-            <select id="pl-add-coment-${i}" style="flex:1;">${(()=>{const l=combinedHH(); return l.map(n=>`<option value="${esc(n)}">${esc(nombreCorto(n,l))}</option>`).join('');})()}<option value="__presidente__">Quien preside</option></select>
+            <select id="pl-add-coment-${i}" style="flex:1;">${(()=>{const pres=personaQuePreside(); const l=combinedHH().filter(n=>n!==pres); return l.map(n=>`<option value="${esc(n)}">${esc(nombreCorto(n,l))}</option>`).join('');})()}<option value="__presidente__">Quien preside</option></select>
             <button class="btn secondary small" onclick="addComentarista(${i})">+ Agregar</button>
           </div>
         </div>
