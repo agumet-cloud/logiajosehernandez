@@ -143,7 +143,7 @@
   .grid-wrap{overflow-x:auto;}
   table.grilla{border-collapse:collapse;font-size:11px;white-space:nowrap;}
   table.grilla th, table.grilla td{border:1px solid var(--line);padding:6px 8px;text-align:center;color:var(--cream);}
-  table.grilla th.hh-col{writing-mode:vertical-rl;transform:rotate(180deg);font-size:10.5px;color:var(--gold-soft);}
+  table.grilla th.hh-col{font-size:11.5px;color:var(--gold-soft);white-space:nowrap;}
   table.grilla td.fecha-col{text-align:left;font-weight:600;color:var(--gold-soft);white-space:nowrap;}
   table.grilla td.p{background:rgba(111,174,130,.18);color:var(--ok);font-weight:700;}
   table.grilla td.d{background:rgba(201,168,93,.18);color:var(--gold);font-weight:700;}
@@ -2336,14 +2336,16 @@ function renderAsistRegistros(main, toolbar){
   toolbar.style.display='flex';
   toolbar.innerHTML = `<button class="btn ghost" onclick="state.asistHistoryPath.year=null;render();">← Atrás</button>`;
 }
-function verAsistDetalle(id){ state.asistCurrent = state.asistRegistros.find(r=>r.id===id); state.view='asist-detalle'; render(); }
+function verAsistDetalle(id){ state.asistCurrent = state.asistRegistros.find(r=>r.id===id); state._asistEditando=null; state.view='asist-detalle'; render(); }
 function renderAsistDetalle(main, toolbar){
   const r = state.asistCurrent;
+  if(state._asistEditando) return renderAsistDetalleEdit(main, toolbar, r);
   const presentes = r.asistencia.filter(a=>a.estado==='presente');
   const disculpados = r.asistencia.filter(a=>a.estado==='disculpado');
   const ausentes = r.asistencia.filter(a=>a.estado==='ausente');
   main.innerHTML = `
     <h2 class="section-title">${esc(state.config.grados[r.grado].label)} — ${r.fecha}</h2>
+    ${state.esSecretario ? `<button class="btn secondary small" style="margin-bottom:14px;" onclick="iniciarEdicionAsistencia()">✏ Corregir esta asistencia</button>` : ''}
     <div class="card">
       <h3>Presentes <span class="pill">${presentes.length}</span></h3>
       <p>${presentes.map(a=>esc(a.nombre)).join(', ') || '—'}</p>
@@ -2359,6 +2361,68 @@ function renderAsistDetalle(main, toolbar){
   `;
   toolbar.style.display='flex';
   toolbar.innerHTML = `<button class="btn ghost" onclick="state.view='asist-registros';render();">← Volver</button>`;
+}
+/* ---- Corrección manual de una asistencia ya archivada ----
+   Sirve para dos casos: 1) alguien cambió de nombre en Legajos después de
+   esta tenida y quedó "huérfano" en la grilla/resumen; 2) al secretario se
+   le pasó marcar mal a alguien y se nota después. Esto solo corrige el
+   registro de asistencia (grilla, resumen) — no reescribe el texto ya
+   redactado del acta. */
+function iniciarEdicionAsistencia(){
+  state._asistEditando = state.asistCurrent.asistencia.map(a=>({nombre:a.nombre, estado:a.estado||'presente', motivo:a.motivo||''}));
+  render();
+}
+function cancelarEdicionAsistencia(){ state._asistEditando = null; render(); }
+function setEstadoEdicionAsistencia(i, val){ state._asistEditando[i].estado = val; render(); }
+function quitarFilaEdicionAsistencia(i){ state._asistEditando.splice(i,1); render(); }
+function agregarFilaEdicionAsistencia(){
+  const sel = document.getElementById('asist-add-hh');
+  if(!sel || !sel.value) return;
+  state._asistEditando.push({nombre: sel.value, estado:'presente', motivo:''});
+  render();
+}
+function renderAsistDetalleEdit(main, toolbar, r){
+  const filas = state._asistEditando;
+  const disponibles = state.config.hh.filter(n=> !filas.some(f=>f.nombre===n));
+  main.innerHTML = `
+    <h2 class="section-title">Corregir asistencia — ${esc(state.config.grados[r.grado].label)} ${r.fecha}</h2>
+    <p class="muted" style="margin-top:-6px;">Cambiá el estado, el nombre (por ejemplo si después lo modificaste en Legajos) o agregá/quitá a alguien de esta lista. No modifica el texto ya redactado del acta.</p>
+    <div id="asist-edit-list">${filas.map((f,i)=>`
+      <div class="repeat-block">
+        <input type="text" value="${esc(f.nombre)}" oninput="state._asistEditando[${i}].nombre=this.value" style="font-weight:600;margin-bottom:8px;">
+        <div class="toggle-group">
+          <button type="button" class="toggle-btn presente ${f.estado==='presente'?'on':''}" onclick="setEstadoEdicionAsistencia(${i},'presente')">Presente</button>
+          <button type="button" class="toggle-btn disculpado ${f.estado==='disculpado'?'on':''}" onclick="setEstadoEdicionAsistencia(${i},'disculpado')">Ausente c/disculpa</button>
+          <button type="button" class="toggle-btn ausente ${f.estado==='ausente'?'on':''}" onclick="setEstadoEdicionAsistencia(${i},'ausente')">Ausente sin aviso</button>
+        </div>
+        ${f.estado!=='presente' ? `<input type="text" placeholder="Motivo (opcional)" value="${esc(f.motivo||'')}" oninput="state._asistEditando[${i}].motivo=this.value" style="margin-top:8px;">` : ''}
+        <button type="button" class="btn ghost small" style="margin-top:8px;" onclick="quitarFilaEdicionAsistencia(${i})">Quitar de esta lista</button>
+      </div>
+    `).join('') || '<p class="muted">No quedó nadie en esta lista.</p>'}</div>
+    ${disponibles.length ? `
+    <div class="field" style="margin-top:14px;">
+      <label>Agregar a alguien que faltó en esta lista</label>
+      <div style="display:flex;gap:8px;">
+        <select id="asist-add-hh" style="flex:1;">${disponibles.map(n=>`<option value="${esc(n)}">${esc(nombreCorto(n,disponibles))}</option>`).join('')}</select>
+        <button type="button" class="btn secondary small" onclick="agregarFilaEdicionAsistencia()">+ Agregar</button>
+      </div>
+    </div>` : ''}
+  `;
+  toolbar.style.display='flex';
+  toolbar.innerHTML = `
+    <button class="btn ghost" onclick="cancelarEdicionAsistencia()">Cancelar</button>
+    <button class="btn" onclick="guardarEdicionAsistencia()">Guardar cambios</button>
+  `;
+}
+async function guardarEdicionAsistencia(){
+  const r = state.asistCurrent;
+  const { error } = await db.from('asistencia_registros').update({asistencia: state._asistEditando}).eq('id', r.id);
+  if(error){ toast('No se pudo guardar la corrección'); console.error(error); return; }
+  await cargarAsistRegistros();
+  state.asistCurrent = state.asistRegistros.find(x=>x.id===r.id);
+  state._asistEditando = null;
+  toast('Asistencia corregida');
+  render();
 }
 
 /* ---- Resumen por hermano ---- */
@@ -2417,7 +2481,7 @@ function renderAsistGrilla(main, toolbar){
     <h2 class="section-title">Grilla anual</h2>
     <div class="grid-wrap">
       <table class="grilla">
-        <thead><tr><th>Fecha</th>${hh.map(n=>`<th class="hh-col">${esc(n)}</th>`).join('')}</tr></thead>
+        <thead><tr><th>Fecha</th>${hh.map(n=>`<th class="hh-col" title="${esc(n)}">${esc(nombreCorto(n,hh))}</th>`).join('')}</tr></thead>
         <tbody>
           ${ordenados.map(r=>`<tr>
             <td class="fecha-col">${r.fecha}<br><span class="muted">${esc(state.config.grados[r.grado].label)}</span></td>
