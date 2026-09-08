@@ -241,8 +241,9 @@
         </div>
 
         <div class="form-botonera" id="form-botonera">
-          <div>
+          <div style="display:flex; gap:8px;">
             <button type="button" class="ghost" id="btn-eliminar-legajo" style="display:none; color:var(--danger); border-color:var(--danger);">Dar de baja</button>
+            <button type="button" class="ghost" id="btn-borrar-legajo" style="display:none; color:var(--danger); border-color:var(--danger);" title="Solo se puede si no tiene cargos, actas firmadas ni otro historial asociado">Eliminar definitivamente</button>
           </div>
           <div class="der">
             <span class="error-msg" id="ficha-error"></span>
@@ -625,6 +626,7 @@ async function abrirFicha(id) {
     $("card-firma").style.display = "none";
     $("card-documentos").style.display = "none";
     $("btn-eliminar-legajo").style.display = "none";
+    $("btn-borrar-legajo").style.display = "none";
     mostrarVista("vista-ficha");
     return;
   }
@@ -641,6 +643,11 @@ async function abrirFicha(id) {
   $("card-documentos").style.display = "block";
   $("btn-eliminar-legajo").style.display = esSecretario ? "inline-flex" : "none";
   $("btn-eliminar-legajo").textContent = hermano.activo ? "Dar de baja" : "Reactivar";
+  // Borrado definitivo: solo se ofrece una vez que el legajo ya está dado de baja,
+  // como paso deliberado aparte (igual que la papelera del Restirador). La base
+  // de datos igual va a rechazar el borrado si tiene cargos, actas firmadas u
+  // otro historial asociado — ahí no se corre riesgo de romper nada por accidente.
+  $("btn-borrar-legajo").style.display = (esSecretario && !hermano.activo) ? "inline-flex" : "none";
 
   await cargarCargosDeFicha(hermano.id);
   await cargarFirma();
@@ -761,6 +768,28 @@ $("btn-eliminar-legajo").addEventListener("click", async () => {
   if (error) { toast("No se pudo actualizar el estado.", true); console.error(error); return; }
   toast(nuevoEstado ? "Legajo reactivado." : "Legajo dado de baja.");
   await abrirFicha(fichaActual.id);
+});
+
+$("btn-borrar-legajo").addEventListener("click", async () => {
+  if (!fichaActual) return;
+  const nombre = fichaActual.nombre_completo;
+  if (!confirm(`Esto borra el legajo de "${nombre}" para siempre, sin posibilidad de recuperarlo (a diferencia de "Dar de baja"). ¿Confirmás?`)) return;
+
+  const btn = $("btn-borrar-legajo");
+  btn.disabled = true;
+  const { error } = await db.from("hermanos").delete().eq("id", fichaActual.id);
+  btn.disabled = false;
+  if (error) {
+    console.error(error);
+    // Lo más probable es que tenga cargos, firmas usadas en actas, u otro
+    // historial que lo referencia — la base de datos lo protege sola.
+    toast("No se pudo eliminar: tiene cargos, actas u otro historial asociado. Dejalo dado de baja en su lugar.", true);
+    return;
+  }
+  toast("Legajo eliminado para siempre.");
+  fichaActual = null;
+  mostrarVista("vista-listado");
+  await cargarListado();
 });
 
 // ---- Historial de cargos ----
