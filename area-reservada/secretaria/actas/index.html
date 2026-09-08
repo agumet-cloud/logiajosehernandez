@@ -916,13 +916,36 @@ async function deleteActa(id){
   if(!confirm('¿Enviar esta acta a la papelera? Vas a poder restaurarla después.')) return;
   const { error } = await db.from('actas').update({estado:'papelera', borrada_en: new Date().toISOString()}).eq('id', id);
   if(error){ toast('No se pudo mover a la papelera'); console.error(error); return; }
+  // Mientras el acta esté en la papelera, la asistencia que se tomó en ella no
+  // debe seguir contando en el Libro de Asistencia (grilla / resumen). Se repone
+  // sola si el acta se restaura.
+  const { error: errAsist } = await db.from('asistencia_registros').delete().eq('acta_id', id);
+  if(errAsist) console.error('No se pudo quitar la asistencia del acta enviada a la papelera', errAsist);
+  await cargarAsistRegistros();
   window._histCache = await getHistory();
   toast('Acta movida a la papelera');
   render();
 }
+async function reponerAsistenciaDeActa(row){
+  const items = row.items || [];
+  const item = items.find(it=>it.type==='disculpas');
+  const filas = item && item.data && item.data.filas;
+  if(!filas || !filas.length) return;
+  const asistencia = filas.map(r=>({nombre:r.nombre, estado:r.estado||'presente', motivo:r.motivo||''}));
+  const { error } = await db.from('asistencia_registros').insert({
+    acta_id: row.id,
+    grado_id: row.grado_id,
+    fecha: row.fecha,
+    asistencia,
+    creado_por: state.miHermanoId
+  });
+  if(error){ console.error(error); toast('El acta se restauró, pero no se pudo recuperar su asistencia'); }
+}
 async function restaurarActa(id){
-  const { error } = await db.from('actas').update({estado:'activa', borrada_en:null}).eq('id', id);
+  const { data, error } = await db.from('actas').update({estado:'activa', borrada_en:null}).eq('id', id).select('id, grado_id, fecha, items').single();
   if(error){ toast('No se pudo restaurar'); console.error(error); return; }
+  if(data) await reponerAsistenciaDeActa(data);
+  await cargarAsistRegistros();
   window._histCache = await getHistory();
   toast('Acta restaurada');
   render();
@@ -941,6 +964,12 @@ async function renderTrash(main, toolbar){
   if(!state.esSecretario){ goHome(); return; }
   main.innerHTML = `<h2 class="section-title">Papelera</h2><div id="trash-list"><p class="muted">Cargando...</p></div>`;
   const trash = await getTrash();
+  // Saneamiento: actas que quedaron en la papelera antes de este arreglo pueden
+  // tener todavía su registro de asistencia activo. Se limpia solo, en silencio.
+  if(trash.length){
+    const { error } = await db.from('asistencia_registros').delete().in('acta_id', trash.map(h=>h.id));
+    if(!error) await cargarAsistRegistros();
+  }
   const el = document.getElementById('trash-list');
   if(!trash.length){
     el.innerHTML = '<div class="empty">La papelera está vacía.</div>';
