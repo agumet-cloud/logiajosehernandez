@@ -1930,9 +1930,23 @@ function renderItemText(it, a, gd){
       if(!d.texto) return '';
       return `Asuntos de Secretaría\nSe da lectura a los asuntos de Secretaría. ${d.texto}`;
     case 'disculpas': {
-      const filas=(d.filas||[]).filter(r=>r.estado==='disculpado');
-      if(!filas.length) return '';
-      const frases = filas.map(r=>{
+      const filasAll = d.filas || [];
+      const conDisculpa = filasAll.filter(r=>r.estado==='disculpado');
+      const sinDisculpa = filasAll.filter(r=>r.estado==='ausente');
+      // Nadie faltó: no hace falta circular la palabra, y se deja constancia
+      // de eso en vez de omitir el punto directamente.
+      if(!conDisculpa.length && !sinDisculpa.length){
+        return `Disculpas de Hermanos ausentes\nLa palabra para traer disculpas de ${gd.hermano_pl} ausentes no se circula, debido a que todos los ${gd.hermano_pl} del Taller se encuentran presentes.`;
+      }
+      // Hay ausentes pero nadie trajo disculpa por ninguno: la palabra se
+      // circula igual, simplemente no se hace uso de ella. No se nombra a
+      // nadie (ese detalle queda en el Libro de Asistencia).
+      if(!conDisculpa.length){
+        return `Disculpas de Hermanos ausentes\nSe circula la palabra a fin de presentar disculpas por parte de ${gd.hermano_pl} ausentes, no haciéndose uso de ella.`;
+      }
+      // Al menos un ausente tiene disculpa presentada: se listan solo esos,
+      // sin mencionar a los demás ausentes que no la solicitaron.
+      const frases = conDisculpa.map(r=>{
         let s = `El ${gd.hermano_sing} ${firstName(r.excusa)||'—'}`;
         s += ` presenta disculpas por la ausencia del ${gd.hermano_sing} ${firstName(r.nombre)}`;
         if(r.motivo) s += `, en razón de ${r.motivo}`;
