@@ -55,7 +55,7 @@
       </a>
     </div>
 
-    <div class="card area-card">
+    <div class="card area-card" id="card-secretaria">
       <a href="secretaria/index.html">
         <h2 class="area-title">Secretaría</h2>
         <p class="area-desc">Actas (Restirador), solicitudes de admisión y boletines</p>
@@ -87,16 +87,29 @@
 
   const bienvenida = document.getElementById("bienvenida");
 
-  const { data: hermano } = await db
-    .from("hermanos")
-    .select("nombre_completo")
-    .eq("auth_user_id", session.user.id)
-    .maybeSingle();
+  const [{ data: hermano }, { data: gradoTope }] = await Promise.all([
+    db.from("hermanos").select("nombre_completo, grado_id").eq("auth_user_id", session.user.id).maybeSingle(),
+    db.from("grados").select("id").order("orden", { ascending: false }).limit(1).maybeSingle()
+  ]);
 
   if (hermano) {
     bienvenida.textContent = "Bienvenido, " + hermano.nombre_completo;
   } else {
     bienvenida.textContent = session.user.email + " — tu legajo todavía no está cargado en el sistema.";
+  }
+
+  // Secretaría (actas, admisión, boletines) es de acceso reservado a HH∴
+  // Maestros∴ — un Aprendiz o Compañero no tiene nada que hacer ahí.
+  const esMaestro = !!(hermano && gradoTope && hermano.grado_id === gradoTope.id);
+  if (!esMaestro) {
+    const card = document.getElementById("card-secretaria");
+    if (card) {
+      card.classList.add("disabled");
+      const link = card.querySelector("a");
+      if (link) { link.removeAttribute("href"); link.style.pointerEvents = "none"; link.style.cursor = "default"; }
+      const desc = card.querySelector(".area-desc");
+      if (desc) desc.insertAdjacentHTML("afterend", '<span class="tag-proximamente">Solo HH∴ Maestros∴</span>');
+    }
   }
 })();
 
