@@ -290,6 +290,7 @@ let state = {
   loaded: false,
   esSecretario: false,
   miHermanoId: null,
+  miGradoNum: null,       // grado (1/2/3) del H∴ logueado; null si no tiene legajo
   hermanosActivos: [],    // padrón activo completo [{id, nombre_completo, grado_id}]
   historyPath: {year:null, grado:null},
   asistRegistros: [],
@@ -400,6 +401,11 @@ async function cargarDatosBase(){
     };
   });
 
+  // Grado del H∴ logueado, ya con _gradoNumPorId resuelto arriba. Se usa para
+  // ocultar del Libro de actas todo lo de un grado superior al propio (secreto
+  // de grado: nadie puede leer actas de un grado al que no pertenece o superó).
+  state.miGradoNum = miLegajo ? gradoNumDeId(miLegajo.grado_id) : null;
+
   // Titular vigente por cargo (para el cuadro de autoridades de la tenida).
   const titularPorCargoId = {};
   (vigentesData || []).forEach(v => {
@@ -471,12 +477,14 @@ async function guardarSecretariaConfig(){
 async function cargarAsistRegistros(){
   const { data, error } = await db.from('asistencia_registros').select('*').order('fecha', {ascending:false});
   if(error){ console.error(error); state.asistRegistros = []; return; }
-  state.asistRegistros = (data||[]).map(r => ({
-    id: r.id,
-    fecha: r.fecha,
-    grado: gradoNumDeId(r.grado_id),
-    asistencia: r.asistencia || []
-  }));
+  state.asistRegistros = (data||[])
+    .map(r => ({
+      id: r.id,
+      fecha: r.fecha,
+      grado: gradoNumDeId(r.grado_id),
+      asistencia: r.asistencia || []
+    }))
+    .filter(r => actaVisibleParaMi(r.grado)); // secreto de grado: ver getHistory()
 }
 
 async function saveDraft(){
@@ -519,16 +527,25 @@ function mapActaRow(row){
     _firmanteOradorId: row.firmante_orador_id
   };
 }
+// Secreto de grado: un H∴ solo puede leer actas de su propio grado o de un
+// grado inferior (regla real: quien es Aprendiz no puede saber qué pasa en
+// tenidas de Compañero o Maestro). Este filtro es una mitigación del lado del
+// cliente; la restricción real tiene que vivir en las políticas RLS de
+// Supabase (ver SQL aparte), porque cualquiera con las credenciales públicas
+// de la API podría saltearse este filtro consultando la tabla directamente.
+function actaVisibleParaMi(grado){
+  return state.miGradoNum == null || grado <= state.miGradoNum;
+}
 async function getHistory(){
   const { data, error } = await db.from('actas').select('*').eq('estado','activa').order('fecha', {ascending:false});
   if(error){ console.error(error); return []; }
-  return (data||[]).map(mapActaRow);
+  return (data||[]).map(mapActaRow).filter(a => actaVisibleParaMi(a.grado));
 }
 async function getTrash(){
   if(!state.esSecretario) return [];
   const { data, error } = await db.from('actas').select('*').eq('estado','papelera').order('borrada_en', {ascending:false});
   if(error){ console.error(error); return []; }
-  return (data||[]).map(mapActaRow);
+  return (data||[]).map(mapActaRow).filter(a => actaVisibleParaMi(a.grado));
 }
 
 function toast(msg){
@@ -2522,6 +2539,9 @@ async function cerrarSesion(){
   document.getElementById('hdr-logo').src = 'data:image/svg+xml;base64,'+LOGO_SVG_B64;
   const ok = await cargarDatosBase();
   if(!ok) return; // exigirSesion() ya redirigió al login
+  // Secretaría (y el Restirador en particular) es de acceso reservado a
+  // HH∴ Maestros∴ — un Aprendiz o Compañero no debe entrar ni por URL directa.
+  if(state.miGradoNum !== 3){ window.location.href = '../../panel.html'; return; }
   await cargarAsistRegistros();
   render();
 })();
