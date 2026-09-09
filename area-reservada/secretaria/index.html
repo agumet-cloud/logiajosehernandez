@@ -80,6 +80,14 @@
 (async () => {
   const session = await exigirSesion();
   if (!session) return;
+
+  // Secretaría es de acceso reservado a HH∴ Maestros∴ (secreto de grado).
+  const [{ data: hermano }, { data: gradoTope }] = await Promise.all([
+    db.from("hermanos").select("grado_id").eq("auth_user_id", session.user.id).maybeSingle(),
+    db.from("grados").select("id").order("orden", { ascending: false }).limit(1).maybeSingle()
+  ]);
+  const esMaestro = !!(hermano && gradoTope && hermano.grado_id === gradoTope.id);
+  if (!esMaestro) { window.location.href = "../panel.html"; return; }
 })();
 
 document.getElementById("btn-panel").addEventListener("click", () => window.location.href = "../panel.html");
