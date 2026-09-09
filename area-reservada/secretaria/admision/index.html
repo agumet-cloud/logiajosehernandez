@@ -272,13 +272,18 @@ function mostrarVista(id) {
   sesion = await exigirSesion();
   if (!sesion) return;
 
-  const [{ data: soySec, error: errSec }, { data: hermanoPropio }] = await Promise.all([
+  const [{ data: soySec, error: errSec }, { data: hermanoPropio }, { data: gradoTope }] = await Promise.all([
     db.rpc("soy_secretario"),
-    db.from("hermanos").select("id").eq("auth_user_id", sesion.user.id).maybeSingle(),
+    db.from("hermanos").select("id, grado_id").eq("auth_user_id", sesion.user.id).maybeSingle(),
+    db.from("grados").select("id").order("orden", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (errSec) console.error("Error chequeando soy_secretario():", errSec);
   esSecretario = !!soySec;
   miHermanoId = hermanoPropio?.id || null;
+
+  // Secretaría es de acceso reservado a HH∴ Maestros∴ (secreto de grado).
+  const esMaestro = !!(hermanoPropio && gradoTope && hermanoPropio.grado_id === gradoTope.id);
+  if (!esMaestro) { window.location.href = "../../panel.html"; return; }
 
   if (esSecretario) {
     $("subtitulo").textContent = "Solicitudes de admisión de nuevos HH∴ y Libro Negro";
