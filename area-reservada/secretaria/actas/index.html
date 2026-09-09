@@ -2474,13 +2474,14 @@ function renderAsistResumen(main, toolbar){
 
   main.innerHTML = `
     <h2 class="section-title">Resumen por hermano</h2>
-    <p class="muted" style="margin-top:-6px;">Ordenado por ausencias sin aviso, para detectar rápido a quién conviene instruir.</p>
+    <p class="muted" style="margin-top:-6px;">Ordenado por ausencias sin aviso, para detectar rápido a quién conviene instruir. "Oportunidades" cuenta solo las tenidas a las que cada H∴ podía asistir según su grado (un aprendiz, las de 1er grado; un compañero, 1er y 2do; un maestro, todas) — el % de asistencia ya sale sobre esa base.</p>
     ${!state.asistRegistros.length ? '<div class="empty">Todavía no hay tenidas registradas.</div>' : `
     <table class="resumen">
-      <thead><tr><th>Hermano</th><th class="num">Presente</th><th class="num">C/ disculpa</th><th class="num">Sin aviso</th><th>% presente</th></tr></thead>
+      <thead><tr><th>Hermano</th><th class="num">Oportunidades</th><th class="num">Presente</th><th class="num">C/ disculpa</th><th class="num">Sin aviso</th><th>% presente</th></tr></thead>
       <tbody>
         ${rows.map(r=>`<tr>
           <td>${esc(r.nombre)}</td>
+          <td class="num muted">${r.total}</td>
           <td class="num">${r.presentes}</td>
           <td class="num">${r.disculpados}</td>
           <td class="num" style="${r.ausentes>0?'color:var(--danger);font-weight:700;':''}">${r.ausentes}</td>
