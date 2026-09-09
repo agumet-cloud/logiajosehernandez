@@ -96,6 +96,18 @@
   }
   .card-header h2 { font-size:1.05rem; margin:0; }
 
+  /* ---- información de cuenta (siempre visible, para transferir sin preguntar) ---- */
+  .datos-bancarios-body { padding:14px 18px 18px; }
+  .dato-cuenta {
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:9px 0; border-bottom:1px solid var(--line);
+  }
+  .dato-cuenta:last-child { border-bottom:none; }
+  .dato-label { flex:0 0 60px; color:var(--muted); font-size:.78rem; letter-spacing:.04em; }
+  .dato-valor { flex:1 1 160px; color:var(--cream); font-size:.95rem; word-break:break-all; }
+  .dato-cuenta button { width:auto; flex:0 0 auto; padding:6px 12px; font-size:.74rem; }
+  #panel-editar-cuenta { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+
   .empty-state { text-align:center; padding:40px 16px; color:var(--muted); font-size:.9rem; }
 
   .mov-row {
@@ -282,6 +294,43 @@
   </div>
 
   <div id="vista-app" style="display:none;">
+
+    <!-- ===================== INFORMACIÓN DE CUENTA (siempre visible) ===================== -->
+    <div class="card" id="card-datos-bancarios" style="margin-bottom:18px;">
+      <div class="card-header">
+        <h2>🏦 Información de cuenta</h2>
+        <button class="ghost" type="button" id="btn-editar-cuenta" style="display:none;">Editar</button>
+      </div>
+      <div class="datos-bancarios-body">
+        <p class="muted" id="cuenta-vacia" style="margin:0;">Todavía no se cargaron los datos de la cuenta.</p>
+        <div id="cuenta-datos" style="display:none;">
+          <div class="dato-cuenta" id="fila-cuenta-titular">
+            <span class="dato-label">Titular</span>
+            <span class="dato-valor" id="cuenta-titular"></span>
+            <button class="ghost" type="button" data-copiar="cuenta-titular">Copiar</button>
+          </div>
+          <div class="dato-cuenta" id="fila-cuenta-alias">
+            <span class="dato-label">Alias</span>
+            <span class="dato-valor" id="cuenta-alias"></span>
+            <button class="ghost" type="button" data-copiar="cuenta-alias">Copiar</button>
+          </div>
+          <div class="dato-cuenta" id="fila-cuenta-cbu">
+            <span class="dato-label">CBU</span>
+            <span class="dato-valor" id="cuenta-cbu"></span>
+            <button class="ghost" type="button" data-copiar="cuenta-cbu">Copiar</button>
+          </div>
+        </div>
+        <div id="panel-editar-cuenta" style="display:none;">
+          <div class="config-fila">
+            <div class="campo"><label for="cuenta-input-titular">Titular</label><input id="cuenta-input-titular" type="text" placeholder="Nombre del titular"></div>
+            <div class="campo"><label for="cuenta-input-alias">Alias</label><input id="cuenta-input-alias" type="text" placeholder="alias.cuenta.logia"></div>
+            <div class="campo"><label for="cuenta-input-cbu">CBU</label><input id="cuenta-input-cbu" type="text" inputmode="numeric" placeholder="22 dígitos" maxlength="22"></div>
+            <button class="ghost" type="button" id="btn-guardar-cuenta">Guardar</button>
+          </div>
+          <span class="error-msg" id="cuenta-error"></span>
+        </div>
+      </div>
+    </div>
 
     <div class="tabs" id="tabs">
       <button class="ghost tab activo" data-tab="libro" id="tab-libro">Libro completo</button>
@@ -656,6 +705,7 @@ let cuotaValoresCache = [];         // orden desc por vigente_desde
 let capitacionValoresCache = [];    // idem
 let movimientosCache = [];
 let miDeuda = null;
+let datosBancarios = null;         // { titular, alias, cbu } o null — visible para cualquier H∴
 
 let tipoActual = "cuota";
 let signoGeneralActual = "ingreso";
@@ -799,6 +849,7 @@ function configurarTabsPorRol() {
   // cualquier Maestro pueda ver la pestaña donde viven estos botones.
   $("btn-config-valores").style.display = puedeCargar ? "" : "none";
   $("btn-exportar-deuda").style.display = puedeCargar ? "" : "none";
+  $("btn-editar-cuenta").style.display = puedeCargar ? "" : "none";
   $("subtitulo").textContent = puedeCargar
     ? "Movimientos, cuotas y recibos"
     : (esMaestro ? "Libro completo y tu cuenta" : "Tu cuenta");
@@ -819,6 +870,9 @@ async function cargarDatosBase() {
     db.from("tesoreria_cuota_valores").select("*").order("vigente_desde", { ascending: false }),
     db.from("tesoreria_capitacion_valores").select("*").order("vigente_desde", { ascending: false }),
     db.from("tesoreria_movimientos").select("*").order("creado_en", { ascending: false }),
+    // Sin condición de rol: la información de cuenta la tiene que ver
+    // cualquier H∴ que entra a Tesorería, no solo quien puede cargar o es Maestro.
+    db.from("tesoreria_datos_bancarios").select("*").eq("id", 1).maybeSingle(),
   ];
   if (puedeVerTodo) {
     tareas.push(db.from("hermanos").select("id, nombre_completo, grado_id, activo").order("nombre_completo"));
@@ -840,8 +894,9 @@ async function cargarDatosBase() {
   cuotaValoresCache = resultados[1].data || [];
   capitacionValoresCache = resultados[2].data || [];
   movimientosCache = resultados[3].data || [];
+  datosBancarios = resultados[4].data || null;
 
-  let idx = 4;
+  let idx = 5;
   if (puedeVerTodo) {
     hermanosCache = resultados[idx].data || []; idx++;
     tesoreriaHermanosCache = resultados[idx].data || []; idx++;
@@ -856,6 +911,7 @@ async function cargarDatosBase() {
     poblarSelectsHermanos();
   }
 
+  renderDatosBancarios();
   renderMargenNota();
   renderLibro();
   renderCuenta();
@@ -947,6 +1003,81 @@ async function guardarValorHistorizado(cual) {
     btn.disabled = false;
   }
 }
+
+// ============================================================
+// INFORMACIÓN DE CUENTA (visible para cualquier H∴, editable solo por
+// quien puede cargar tesorería)
+// ============================================================
+function renderDatosBancarios() {
+  const hayDatos = datosBancarios && (datosBancarios.titular || datosBancarios.alias || datosBancarios.cbu);
+  $("cuenta-vacia").style.display = hayDatos ? "none" : "";
+  $("cuenta-datos").style.display = hayDatos ? "" : "none";
+
+  const campos = [
+    ["titular", "cuenta-titular", "fila-cuenta-titular"],
+    ["alias", "cuenta-alias", "fila-cuenta-alias"],
+    ["cbu", "cuenta-cbu", "fila-cuenta-cbu"],
+  ];
+  campos.forEach(([campo, idValor, idFila]) => {
+    const valor = datosBancarios?.[campo] || "";
+    $(idValor).textContent = valor;
+    $(idFila).style.display = valor ? "" : "none";
+  });
+}
+
+$("btn-editar-cuenta").addEventListener("click", () => {
+  $("cuenta-input-titular").value = datosBancarios?.titular || "";
+  $("cuenta-input-alias").value = datosBancarios?.alias || "";
+  $("cuenta-input-cbu").value = datosBancarios?.cbu || "";
+  $("cuenta-error").textContent = "";
+  const panel = $("panel-editar-cuenta");
+  panel.style.display = panel.style.display === "none" ? "block" : "none";
+});
+
+$("btn-guardar-cuenta").addEventListener("click", async () => {
+  $("cuenta-error").textContent = "";
+  const titular = $("cuenta-input-titular").value.trim();
+  const alias = $("cuenta-input-alias").value.trim();
+  const cbu = $("cuenta-input-cbu").value.trim();
+
+  if (!titular) { $("cuenta-error").textContent = "Ingresá el nombre del titular."; return; }
+  if (!alias && !cbu) { $("cuenta-error").textContent = "Cargá al menos el alias o el CBU."; return; }
+  if (cbu && !/^\d{22}$/.test(cbu)) { $("cuenta-error").textContent = "El CBU tiene que tener 22 dígitos."; return; }
+
+  const btn = $("btn-guardar-cuenta");
+  btn.disabled = true;
+  try {
+    const { data, error } = await db.from("tesoreria_datos_bancarios")
+      .upsert({ id: 1, titular, alias: alias || null, cbu: cbu || null, actualizado_por: miHermanoId })
+      .select()
+      .single();
+    if (error) throw error;
+
+    datosBancarios = data;
+    renderDatosBancarios();
+    $("panel-editar-cuenta").style.display = "none";
+    toast("Datos de la cuenta actualizados.");
+  } catch (err) {
+    console.error(err);
+    $("cuenta-error").textContent = "No se pudo guardar. Probá de nuevo.";
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.querySelectorAll("[data-copiar]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const texto = $(btn.dataset.copiar).textContent;
+    if (!texto) return;
+    try {
+      await navigator.clipboard.writeText(texto);
+      toast("Copiado.");
+    } catch (err) {
+      console.error(err);
+      toast("No se pudo copiar. Copialo manualmente.", true);
+    }
+  });
+});
 
 function renderLibro() {
   let ingresos = 0, egresos = 0;
