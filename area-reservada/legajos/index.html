@@ -553,38 +553,111 @@ $("check-inactivos").addEventListener("change", renderListado);
 $("btn-nuevo").addEventListener("click", () => abrirFicha(null));
 $("btn-exportar-xlsx").addEventListener("click", exportarCuadroLogico);
 
+// Los 10 cargos de oficiales de la logia, en el orden fijo del cuadro
+// lógico oficial, con la abreviatura que va en la columna CARGO.
+// Los nombres tienen que coincidir exactamente con los de la tabla `cargos`.
+const CARGOS_OFICIALES_CUADRO = [
+  { nombre: "Venerable Maestro", abrev: "VM" },
+  { nombre: "Primer Vigilante", abrev: "1er Vig" },
+  { nombre: "Segundo Vigilante", abrev: "2do Vig" },
+  { nombre: "Secretario", abrev: "Sec" },
+  { nombre: "Orador", abrev: "Orador" },
+  { nombre: "Experto", abrev: "Experto" },
+  { nombre: "Tesorero", abrev: "Tesorero" },
+  { nombre: "Maestro de Ceremonias", abrev: "M.Cer." },
+  { nombre: "Hospitalario", abrev: "Hosp." },
+  { nombre: "Guarda Templo", abrev: "GTI" },
+];
+
+const CABECERA_CUADRO_LOGICO = [
+  "Columna 1", "APELLIDO Y NOMBRE COMPLETOS", "GRADO", "CARGO", "D.N.I",
+  "MAIL", "DIRECCIÓN", "CIUDAD", "PROVINCIA", "CELULAR ",
+  "FECHA NACIMIENTO", "PERTENENCIA", "AFILIACIÓN",
+];
+
+function fechaComoObjeto(iso) {
+  if (!iso) return null;
+  const [a, m, d] = iso.split("-").map(Number);
+  return new Date(a, m - 1, d);
+}
+
+// Arma una fila del cuadro lógico. Si "h" es null, es un cargo vacante
+// (fila con el cargo pero sin datos de la persona).
+function filaCuadroLogico(h) {
+  return [
+    null, // se numera al final, según la posición definitiva
+    h ? h.nombre_completo : "",
+    h ? nombreGrado(h.grado_id) : "",
+    "",
+    h ? (h.dni || "") : "",
+    h ? (h.email || "") : "",
+    h ? (h.direccion || "") : "",
+    h ? (h.ciudad || "") : "",
+    h ? (h.provincia || "") : "",
+    h ? (h.celular || "") : "",
+    h ? fechaComoObjeto(h.fecha_nacimiento) : null,
+    "", // Pertenencia: sin definir todavía, se deja vacío
+    "", // Afiliación: sin definir todavía, se deja vacío
+  ];
+}
+
 function exportarCuadroLogico() {
   if (ultimoFiltrado.length === 0) {
     toast("No hay HH∴ para exportar con este filtro.", true);
     return;
   }
 
-  const filas = ultimoFiltrado.map((h) => ({
-    "Nombre completo": h.nombre_completo,
-    "Grado": nombreGrado(h.grado_id),
-    "Cargo vigente": cargosVigentesPorHermano[h.id] || "",
-    "DNI": h.dni || "",
-    "Fecha de nacimiento": h.fecha_nacimiento || "",
-    "Fecha de iniciación": h.fecha_iniciacion || "",
-    "Fecha de ascenso": h.fecha_ascenso || "",
-    "Fecha de exaltación": h.fecha_exaltacion || "",
-    "Email": h.email || "",
-    "Celular": h.celular || "",
-    "Dirección": h.direccion || "",
-    "Ciudad": h.ciudad || "",
-    "Provincia": h.provincia || "",
-    "Activo": h.activo ? "Sí" : "No",
-  }));
+  // Quién ocupa cada uno de los 10 cargos de oficiales, entre los HH∴
+  // actualmente visibles en el listado (respeta filtro de grado/búsqueda
+  // y excluye inactivos salvo que "Mostrar inactivos" esté tildado).
+  const porCargo = {};
+  ultimoFiltrado.forEach((h) => {
+    const cargoVigente = cargosVigentesPorHermano[h.id];
+    if (cargoVigente) porCargo[cargoVigente] = h;
+  });
 
-  const hoja = XLSX.utils.json_to_sheet(filas);
+  const idsUsados = new Set();
+  const filas = [];
+
+  // 1. Los 10 cargos de oficiales, en orden fijo (con fila vacía si el
+  //    cargo está vacante).
+  CARGOS_OFICIALES_CUADRO.forEach(({ nombre, abrev }) => {
+    const h = porCargo[nombre];
+    const fila = filaCuadroLogico(h);
+    fila[2] = "Maestro"; // los 10 cargos de oficiales son siempre de grado Maestro
+    fila[3] = abrev;
+    filas.push(fila);
+    if (h) idsUsados.add(h.id);
+  });
+
+  // 2. El resto de los HH∴ sin cargo de oficial, de mayor a menor grado
+  //    (Maestros sueltos, después Compañeros, después Aprendices), sin
+  //    límite de cantidad.
+  const resto = ultimoFiltrado
+    .filter((h) => !idsUsados.has(h.id))
+    .sort((a, b) => {
+      const oa = grados.find((g) => g.id === a.grado_id)?.orden ?? -1;
+      const ob = grados.find((g) => g.id === b.grado_id)?.orden ?? -1;
+      if (oa !== ob) return ob - oa; // grado más alto primero
+      return a.nombre_completo.localeCompare(b.nombre_completo, "es");
+    });
+
+  resto.forEach((h) => filas.push(filaCuadroLogico(h)));
+
+  // Numerar la primera columna según la posición final
+  filas.forEach((fila, i) => { fila[0] = i + 1; });
+
+  // Dos filas en blanco arriba + cabecera, igual que la planilla modelo
+  const aoa = [[], [], CABECERA_CUADRO_LOGICO, ...filas];
+  const hoja = XLSX.utils.aoa_to_sheet(aoa);
   hoja["!cols"] = [
-    { wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 12 }, { wch: 14 },
-    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 24 }, { wch: 14 },
-    { wch: 28 }, { wch: 16 }, { wch: 14 }, { wch: 8 },
+    { wch: 4.71 }, { wch: 40.86 }, { wch: 23 }, { wch: 24.29 }, { wch: 16.29 },
+    { wch: 33.57 }, { wch: 34.43 }, { wch: 17.43 }, { wch: 16.57 }, { wch: 22.71 },
+    { wch: 23.86 }, { wch: 22.57 }, { wch: 8.43 },
   ];
 
   const libro = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(libro, hoja, "Cuadro lógico");
+  XLSX.utils.book_append_sheet(libro, hoja, "Hoja1");
 
   const fecha = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(libro, `Cuadro logico - ${fecha}.xlsx`);
