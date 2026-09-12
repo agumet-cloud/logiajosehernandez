@@ -7,7 +7,6 @@
 <title>Área reservada · Resp∴ Log∴ José Hernández N° 75</title>
 <link rel="stylesheet" href="shared/style.css">
 <style>
-
 .grid {
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
@@ -34,7 +33,117 @@
   padding:2px 8px;
   margin-top:10px;
 }
+
+/* ==========================================================================
+   TEMA CLARO — prueba en el panel
+
+   Nada de esto cambia el diseño: ni tamaños, ni tipografías, ni disposición.
+   El sitio ya define todos sus colores como variables arriba de todo
+   (shared/style.css). Acá esas mismas variables se vuelven a definir, pero
+   solamente cuando la etiqueta <html> lleva el atributo data-tema="claro".
+   Sacar el atributo devuelve todo al verde oscuro original.
+
+   Los colores del tema claro no son inventados: son los que la logia ya usa
+   en el acta impresa — el dorado #b8963d, el verde profundo #1f3d2c, el gris
+   #5b6360 — puestos sobre fondo papel.
+   ========================================================================== */
+
+[data-tema="claro"] {
+  color-scheme: light;
+
+  --green-0:#f3eee2;   /* fondo de la página */
+  --green-1:#fbf8f0;   /* tarjetas: papel levantado */
+  --green-2:#ebe4d4;   /* campos de texto, bloques hundidos */
+  --green-3:#e1d9c5;   /* avisos flotantes */
+
+  --gold:#b8963d;
+  --gold-soft:#8a6a1e; /* títulos: bronce oscuro, legible sobre crema */
+  --cream:#1f3d2c;     /* texto principal: verde profundo */
+  --muted:#5b6360;
+  --line:rgba(138,106,30,.34);
+  --danger:#a8442f;
+}
+
+/* Al 50 % de opacidad, la tarjeta deshabilitada sobre papel casi no se lee. */
+[data-tema="claro"] .area-card.disabled { opacity:.62; }
+
+/* Botón de cambio de tema. Usa variables, así que sirve en los dos temas. */
+#btn-tema {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:34px; height:34px; flex:0 0 auto; padding:0;
+  background:none; border:1px solid var(--line); border-radius:6px;
+  color:var(--muted); cursor:pointer; transition:.2s;
+}
+#btn-tema:hover { border-color:var(--gold); color:var(--gold-soft); }
 </style>
+
+<script>
+/* El tema se aplica acá, antes de que la página se dibuje, para que no haya
+   un parpadeo verde oscuro al entrar. La elección queda guardada en el
+   navegador del H∴ y vale también para el resto de las secciones cuando las
+   pasemos. */
+(function () {
+  var CLAVE = 'logia-tema';
+  var raiz = document.documentElement;
+
+  function leer()   { try { return localStorage.getItem(CLAVE); } catch (e) { return null; } }
+  function guardar(v){ try { localStorage.setItem(CLAVE, v); } catch (e) {} }
+
+  var tema = (leer() === 'claro') ? 'claro' : 'oscuro';
+
+  /* Se muestra el ícono de a dónde va, no el de dónde está. */
+  var SOL =
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>' +
+    '<path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6' +
+    'M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"/></svg>';
+
+  var LUNA =
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a7.6 7.6 0 1 0 11.1 11.1z"/></svg>';
+
+  function pintar() {
+    var claro = (tema === 'claro');
+
+    if (claro) raiz.setAttribute('data-tema', 'claro');
+    else       raiz.removeAttribute('data-tema');
+
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', claro ? '#f3eee2' : '#071b14');
+
+    var boton = document.getElementById('btn-tema');
+    if (boton) {
+      boton.innerHTML = claro ? LUNA : SOL;
+      var texto = claro ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
+      boton.title = texto;
+      boton.setAttribute('aria-label', texto);
+    }
+  }
+
+  function montar() {
+    var salir = document.getElementById('btn-salir');
+    if (!salir || document.getElementById('btn-tema')) return;
+
+    var boton = document.createElement('button');
+    boton.type = 'button';
+    boton.id = 'btn-tema';
+    boton.addEventListener('click', function () {
+      tema = (tema === 'claro') ? 'oscuro' : 'claro';
+      guardar(tema);
+      pintar();
+    });
+
+    salir.parentNode.insertBefore(boton, salir);
+    pintar();
+  }
+
+  pintar();
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar);
+  else montar();
+})();
+</script>
 </head>
 <body>
 
@@ -45,7 +154,9 @@
       <h1 style="font-size:1.9rem; margin:6px 0 0;">Área reservada</h1>
       <p class="muted" id="bienvenida" style="margin-top:6px;">Cargando…</p>
     </div>
-    <button class="ghost" id="btn-salir">Cerrar sesión</button>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button class="ghost" id="btn-salir">Cerrar sesión</button>
+    </div>
   </div>
 
   <div class="grid">
