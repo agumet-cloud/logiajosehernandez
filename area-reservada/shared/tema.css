@@ -1,0 +1,201 @@
+@charset "UTF-8";
+/* ==========================================================================
+   tema.css · Tema claro del Área Reservada
+   Resp∴ Log∴ José Hernández N° 75
+
+   CÓMO FUNCIONA
+   -------------
+   El sitio ya define todos sus colores como variables en :root (en
+   shared/style.css, y también dentro de secretaria/actas/index.html, que es
+   autocontenido y no usa la hoja compartida).
+
+   Este archivo NO cambia ningún diseño, ningún tamaño, ninguna tipografía ni
+   ninguna disposición. Solamente vuelve a definir esas mismas variables cuando
+   la etiqueta <html> lleva el atributo data-tema="claro". Como ese selector
+   pesa más que :root, gana siempre, sin importar el orden de carga de los
+   archivos. Sacar el atributo devuelve todo al tema oscuro original.
+
+   LO QUE NO SE TOCA, A PROPÓSITO
+   ------------------------------
+   El acta impresa (.acta-*) y el recibo de Tesorería (.recibo) tienen su
+   propia paleta "papel", con nombres de variable distintos (--verde-osc,
+   --verde, --dorado, --blanco, --borde, --rojo, --gris). Acá no se redefine
+   ninguna de ellas: el documento sale exactamente igual con tema claro o con
+   tema oscuro. Esa separación es deliberada y no debe romperse.
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. BOTÓN DE CAMBIO DE TEMA
+   Se muestra en los dos temas, así que usa las variables y no valores fijos.
+   Lo inserta tema.js al lado del botón "Cerrar sesión" / "Salir".
+   ========================================================================== */
+
+.btn-tema {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: .2s;
+}
+.btn-tema:hover {
+  border-color: var(--gold);
+  color: var(--gold-soft);
+}
+/* Reserva: si en alguna pantalla no encuentra dónde ubicarse, queda flotando
+   abajo a la derecha en vez de desaparecer. */
+.btn-tema.suelto {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 400;
+  background: var(--green-1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
+}
+
+
+/* ==========================================================================
+   2. LA PALETA CLARA
+   No es una paleta nueva: son los colores que la logia ya usa en el acta
+   impresa (el dorado #b8963d, el verde #1f3d2c, el rojo #a8442f, el gris
+   #5b6360), sobre fondos de papel. La misma identidad, con otra luz.
+   ========================================================================== */
+
+[data-tema="claro"] {
+  /* Le avisa al navegador que los controles nativos (calendarios, listas
+     desplegables, barras de scroll) deben dibujarse en claro. */
+  color-scheme: light;
+
+  /* Escala de fondos. En el tema oscuro, número más alto = más claro.
+     Acá se invierte el sentido: número más alto = más hundido. */
+  --green-0: #f3eee2;   /* fondo de la página */
+  --green-1: #fbf8f0;   /* tarjetas, encabezados: "papel levantado" */
+  --green-2: #ebe4d4;   /* campos de texto, bloques hundidos */
+  --green-3: #e1d9c5;   /* avisos flotantes, elementos elevados */
+
+  --gold:      #b8963d; /* el mismo dorado del acta impresa */
+  --gold-soft: #8a6a1e; /* títulos: bronce oscuro, legible sobre crema */
+  --cream:     #1f3d2c; /* texto principal: verde profundo */
+  --muted:     #5b6360; /* texto secundario */
+  --line:      rgba(138, 106, 30, .34);
+  --danger:    #a8442f;
+  --ok:        #2f6b46;
+
+  /* Color del texto que va encima del dorado (botones llenos). En el tema
+     oscuro ese texto usaba --green-0, que ahora es crema y no se leería. */
+  --sobre-oro: #2a2010;
+}
+
+
+/* ==========================================================================
+   3. CORRECCIONES PUNTUALES
+   Estos son los casos que te mencioné: lugares donde el color está escrito
+   a mano en vez de usar la lista de variables. Sobre fondo oscuro funcionan;
+   sobre fondo claro se borran, se ensucian o quedan ilegibles.
+   Cada bloque dice qué pantalla arregla.
+   ========================================================================== */
+
+/* --- 3.1 Texto oscuro sobre los botones y etiquetas dorados ---------------
+   shared/style.css  → button.primary
+   legajos           → .sign-tabs button.on
+   actas             → .badge-count
+   ingreso           → label.btn-file
+   Todos usaban color:var(--green-0), que en claro es crema sobre dorado. */
+
+[data-tema="claro"] button.primary,
+[data-tema="claro"] .sign-tabs button.on,
+[data-tema="claro"] .badge-count,
+[data-tema="claro"] label.btn-file {
+  color: var(--sobre-oro);
+}
+
+/* --- 3.2 Fondo de las pestañas y botones activos -------------------------
+   tesoreria  → .tabs button.activo, .signo-toggle button.activo
+   admision   → .tab-btn.on
+   Estaban en dorado al 10-12 %: sobre crema no se distingue del fondo. */
+
+[data-tema="claro"] .tabs button.activo,
+[data-tema="claro"] .tab-btn.on,
+[data-tema="claro"] .signo-toggle button.activo {
+  background: rgba(184, 150, 61, .20);
+}
+
+/* --- 3.3 Etiquetas en rojo (pill / pestaña de rechazados) -----------------
+   tesoreria  → .pill.delegacion
+   admision   → .tab-btn.negro.on */
+
+[data-tema="claro"] .tab-btn.negro.on,
+[data-tema="claro"] .pill.delegacion {
+  background: rgba(168, 68, 47, .14);
+}
+
+/* --- 3.4 Fondos que eran blanco o crema translúcidos ---------------------
+   admision   → .tab-count  (era blanco al 8 %: blanco sobre blanco)
+   tesoreria  → .pill.ajuste (era crema al 6 %: desaparecía por completo)
+   Se invierten a verde translúcido, que sobre papel sí se ve. */
+
+[data-tema="claro"] .tab-count {
+  background: rgba(31, 61, 44, .10);
+}
+[data-tema="claro"] .pill.ajuste {
+  background: rgba(31, 61, 44, .07);
+}
+
+/* --- 3.5 Grilla de asistencia del Restirador -----------------------------
+   actas → table.grilla td.p / td.d / td.a
+   Las tres marcas (presente, dispensa, ausente) estaban pensadas como
+   manchas de color al 18 % sobre verde casi negro. */
+
+[data-tema="claro"] table.grilla td.p {
+  background: rgba(47, 107, 70, .16);
+}
+[data-tema="claro"] table.grilla td.d {
+  background: rgba(184, 150, 61, .22);
+}
+[data-tema="claro"] table.grilla td.a {
+  background: rgba(168, 68, 47, .16);
+}
+
+/* --- 3.6 Sombras de los avisos flotantes ---------------------------------
+   legajos, tesoreria, biblioteca → .toast
+   Una sombra negra al 40 % sobre papel se ve como una mancha sucia. */
+
+[data-tema="claro"] .toast {
+  box-shadow: 0 6px 24px rgba(31, 61, 44, .18);
+}
+
+/* --- 3.7 Íconos de calendario -------------------------------------------
+   tesoreria → input[type=month] / input[type=date]
+   Estaban invertidos a la fuerza para que el ícono negro del navegador se
+   viera sobre fondo oscuro. En tema claro hay que dejarlo como viene. */
+
+[data-tema="claro"] input[type="month"]::-webkit-calendar-picker-indicator,
+[data-tema="claro"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: .6;
+}
+
+/* --- 3.8 Flecha de las listas desplegables -------------------------------
+   ingreso, y cualquier select con la flecha dibujada como imagen de fondo.
+   El dorado #c9a85d del dibujo sobre papel queda muy pálido: se reemplaza
+   por el mismo dibujo en el bronce oscuro #8a6a1e. */
+
+[data-tema="claro"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%238a6a1e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* --- 3.9 Tarjetas deshabilitadas ("Próximamente") ------------------------
+   panel → .area-card.disabled
+   Al 50 % de opacidad sobre papel casi no se leen. */
+
+[data-tema="claro"] .area-card.disabled {
+  opacity: .62;
+}
