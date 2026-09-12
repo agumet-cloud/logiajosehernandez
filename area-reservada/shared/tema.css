@@ -69,7 +69,7 @@
    #5b6360), sobre fondos de papel. La misma identidad, con otra luz.
    ========================================================================== */
 
-[data-tema="claro"] {
+:root[data-tema="claro"] {
   /* Le avisa al navegador que los controles nativos (calendarios, listas
      desplegables, barras de scroll) deben dibujarse en claro. */
   color-scheme: light;
@@ -110,10 +110,10 @@
    ingreso           → label.btn-file
    Todos usaban color:var(--green-0), que en claro es crema sobre dorado. */
 
-[data-tema="claro"] button.primary,
-[data-tema="claro"] .sign-tabs button.on,
-[data-tema="claro"] .badge-count,
-[data-tema="claro"] label.btn-file {
+:root[data-tema="claro"] button.primary,
+:root[data-tema="claro"] .sign-tabs button.on,
+:root[data-tema="claro"] .badge-count,
+:root[data-tema="claro"] label.btn-file {
   color: var(--sobre-oro);
 }
 
@@ -122,9 +122,9 @@
    admision   → .tab-btn.on
    Estaban en dorado al 10-12 %: sobre crema no se distingue del fondo. */
 
-[data-tema="claro"] .tabs button.activo,
-[data-tema="claro"] .tab-btn.on,
-[data-tema="claro"] .signo-toggle button.activo {
+:root[data-tema="claro"] .tabs button.activo,
+:root[data-tema="claro"] .tab-btn.on,
+:root[data-tema="claro"] .signo-toggle button.activo {
   background: rgba(184, 150, 61, .20);
 }
 
@@ -132,8 +132,8 @@
    tesoreria  → .pill.delegacion
    admision   → .tab-btn.negro.on */
 
-[data-tema="claro"] .tab-btn.negro.on,
-[data-tema="claro"] .pill.delegacion {
+:root[data-tema="claro"] .tab-btn.negro.on,
+:root[data-tema="claro"] .pill.delegacion {
   background: rgba(168, 68, 47, .14);
 }
 
@@ -142,10 +142,10 @@
    tesoreria  → .pill.ajuste (era crema al 6 %: desaparecía por completo)
    Se invierten a verde translúcido, que sobre papel sí se ve. */
 
-[data-tema="claro"] .tab-count {
+:root[data-tema="claro"] .tab-count {
   background: rgba(31, 61, 44, .10);
 }
-[data-tema="claro"] .pill.ajuste {
+:root[data-tema="claro"] .pill.ajuste {
   background: rgba(31, 61, 44, .07);
 }
 
@@ -154,13 +154,13 @@
    Las tres marcas (presente, dispensa, ausente) estaban pensadas como
    manchas de color al 18 % sobre verde casi negro. */
 
-[data-tema="claro"] table.grilla td.p {
+:root[data-tema="claro"] table.grilla td.p {
   background: rgba(47, 107, 70, .16);
 }
-[data-tema="claro"] table.grilla td.d {
+:root[data-tema="claro"] table.grilla td.d {
   background: rgba(184, 150, 61, .22);
 }
-[data-tema="claro"] table.grilla td.a {
+:root[data-tema="claro"] table.grilla td.a {
   background: rgba(168, 68, 47, .16);
 }
 
@@ -168,7 +168,7 @@
    legajos, tesoreria, biblioteca → .toast
    Una sombra negra al 40 % sobre papel se ve como una mancha sucia. */
 
-[data-tema="claro"] .toast {
+:root[data-tema="claro"] .toast {
   box-shadow: 0 6px 24px rgba(31, 61, 44, .18);
 }
 
@@ -177,8 +177,8 @@
    Estaban invertidos a la fuerza para que el ícono negro del navegador se
    viera sobre fondo oscuro. En tema claro hay que dejarlo como viene. */
 
-[data-tema="claro"] input[type="month"]::-webkit-calendar-picker-indicator,
-[data-tema="claro"] input[type="date"]::-webkit-calendar-picker-indicator {
+:root[data-tema="claro"] input[type="month"]::-webkit-calendar-picker-indicator,
+:root[data-tema="claro"] input[type="date"]::-webkit-calendar-picker-indicator {
   filter: none;
   opacity: .6;
 }
@@ -188,7 +188,7 @@
    El dorado #c9a85d del dibujo sobre papel queda muy pálido: se reemplaza
    por el mismo dibujo en el bronce oscuro #8a6a1e. */
 
-[data-tema="claro"] select {
+:root[data-tema="claro"] select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%238a6a1e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
@@ -196,6 +196,6 @@
    panel → .area-card.disabled
    Al 50 % de opacidad sobre papel casi no se leen. */
 
-[data-tema="claro"] .area-card.disabled {
+:root[data-tema="claro"] .area-card.disabled {
   opacity: .62;
 }
